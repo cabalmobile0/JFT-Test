@@ -1,0 +1,2778 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JFT-Basic CBT Simulator & Pembuat Soal</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Noto Sans JP untuk karakter Jepang yang autentik & Inter untuk UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      user-select: none;
+    }
+    .jp-text {
+      font-family: 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
+    }
+    /* Indikator segitiga hijau aktif di sebelah kanan tombol nomor soal */
+    .active-q-arrow {
+      position: relative;
+    }
+    .active-q-arrow::after {
+      content: '';
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-top: 14px solid transparent;
+      border-bottom: 14px solid transparent;
+      border-left: 10px solid #4e7525;
+      z-index: 10;
+      pointer-events: none;
+    }
+    /* Gaya tab section kiri paling luar */
+    .section-rail-btn {
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+    .section-rail-btn:hover {
+      background-color: #e2e8f0;
+    }
+    .section-rail-btn.active-section {
+      background-color: #ffffff;
+      box-shadow: inset 3px 0 0 #567c2b;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .section-rail-btn.locked-section {
+      opacity: 0.45;
+      cursor: not-allowed;
+      background-color: #f0f0f0;
+    }
+    .section-rail-btn.locked-section:hover {
+      background-color: #f0f0f0;
+    }
+    /* Scrollbar rapi untuk sidebar & modal */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #b5b5b5;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #888;
+    }
+    /* Gaya pilihan ganda khas CBT Prometric/JFT */
+    .cbt-option-box {
+      border: 2px solid #000000;
+      background-color: #ffffff;
+      transition: background-color 0.12s ease, border-color 0.12s ease;
+    }
+    .cbt-option-box:hover {
+      background-color: #f0f6fc;
+    }
+    .cbt-option-box.selected {
+      background-color: #dce9f5;
+      border-color: #1d4ed8;
+      box-shadow: inset 0 0 0 1px #1d4ed8;
+    }
+    /* Furigana styling */
+    ruby rt {
+      font-size: 0.55em;
+      color: #334155;
+    }
+  </style>
+</head>
+<body class="bg-white text-gray-900 min-h-screen flex flex-col overflow-x-hidden">
+
+  <!-- ==================== 1. TOP HEADER BAR (DARK CHARCOAL #111111) ==================== -->
+  <header class="bg-[#111111] text-white px-3 sm:px-5 py-2 flex flex-wrap items-center justify-between gap-2 min-h-[62px] border-b border-black relative z-20">
+    <!-- Kiri: Nomor Soal & Nama Seksi -->
+    <div class="flex flex-col leading-tight">
+      <div class="flex items-baseline gap-2">
+        <span id="header-q-label" class="font-bold text-base sm:text-lg tracking-wide">Question:</span>
+        <span id="header-q-num" class="font-bold text-lg sm:text-xl text-white">5</span>
+      </div>
+      <div class="flex items-baseline gap-1.5 text-xs sm:text-sm text-gray-200 mt-0.5">
+        <span class="font-semibold">Section:</span>
+        <span id="header-section-name" class="truncate max-w-[200px] sm:max-w-xs">Script and Vocabulary</span>
+      </div>
+    </div>
+
+    <!-- Tengah: Ikon Jam & Sisa Waktu -->
+    <div class="flex items-center gap-2.5 mx-auto sm:mx-0">
+      <!-- Ikon Jam Putih Melingkar -->
+      <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-[2.5px] border-white flex items-center justify-center shrink-0">
+        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </div>
+      <div class="flex flex-col leading-tight">
+        <span class="text-xs sm:text-sm font-medium text-gray-100">Section Time Remaining</span>
+        <span id="timer-display" class="font-mono font-bold text-base sm:text-lg tracking-wider text-white">00:15:00</span>
+      </div>
+    </div>
+
+    <!-- Kanan: Tombol Kelola Soal & Finish Section -->
+    <div class="flex items-center gap-2 ml-auto sm:ml-0">
+      <button id="btn-reset-session" type="button" onclick="restartExam()" title="Reset sesi ujian dan kembali ke Intro awal" class="px-2.5 py-2 rounded bg-gray-700 hover:bg-gray-600 text-gray-100 font-semibold text-xs sm:text-sm transition shadow flex items-center gap-1 cursor-pointer">
+        <span>🔄</span>
+        <span class="hidden md:inline">Reset Sesi</span>
+      </button>
+      <button id="btn-open-scoreboard" type="button" title="Lihat papan pengumuman skor peserta" class="px-2.5 py-2 rounded bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold text-xs sm:text-sm transition shadow flex items-center gap-1 cursor-pointer">
+        <span>🏆</span>
+        <span class="hidden md:inline">Papan Skor</span>
+      </button>
+      <button id="btn-toggle-editor" type="button" onclick="toggleMode()" class="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm transition shadow flex items-center gap-1.5 cursor-pointer">
+        <span id="btn-toggle-editor-icon">🔐</span>
+        <span id="btn-toggle-editor-text">Buat / Edit Soal (Admin)</span>
+      </button>
+      <button id="btn-finish-section" type="button" onclick="handleFinishSectionClick()" class="px-4 sm:px-6 py-2 rounded bg-[#fae6b1] hover:bg-[#f3d893] disabled:opacity-45 disabled:cursor-not-allowed text-[#111111] font-bold text-xs sm:text-sm border border-[#d6be80] transition shadow cursor-pointer">
+        Start Test
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== 2. SUB-HEADER BAR (OLIVE / MOSS GREEN #567c2b) ==================== -->
+  <div class="bg-[#567c2b] text-white px-3 sm:px-5 py-1.5 flex flex-wrap items-center justify-between text-xs sm:text-sm font-medium border-b border-[#446321] relative z-20">
+    <div class="flex items-center gap-1.5">
+      <span class="font-bold">Test:</span>
+      <span id="subheader-test-title">Japan Foundation Test for Basic Japanese</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <span class="font-bold">Candidate:</span>
+      <button type="button" onclick="promptEditCandidate()" title="Klik untuk ubah nama peserta" class="hover:underline font-medium cursor-pointer flex items-center gap-1">
+        <span id="subheader-candidate-name">(Belum Diisi)</span>
+        <span class="text-[10px] opacity-80">✎</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== 3. MAIN WORKSPACE: CBT EXAM MODE ==================== -->
+  <main id="cbt-exam-view" class="flex-1 flex overflow-hidden relative z-10">
+    <!-- Left Navigation Sidebar -->
+    <aside class="flex bg-[#f4f4f4] border-r border-gray-300 shrink-0 select-none relative z-20">
+      <!-- Strip Progres Seksi Tipis di Kiri Paling Luar (Terkunci sebelum Start Test ditekan) -->
+      <nav aria-label="Section Navigation" class="w-12 sm:w-14 bg-[#f0f0f0] border-r border-gray-300 flex flex-col items-center py-1.5 gap-1 text-[10px] sm:text-[11px] text-gray-700 font-medium">
+        <!-- Intro -->
+        <button type="button" id="rail-btn-Intro" onclick="switchSection('Intro')" title="Introduction (Petunjuk & Identitas Peserta)" class="section-rail-btn w-full py-1.5 px-1 flex flex-col items-center cursor-pointer focus:outline-none">
+          <span class="mb-1">Intro</span>
+          <div class="w-2.5 h-11 rounded-full bg-gray-200 border border-gray-400 overflow-hidden flex flex-col justify-end">
+            <div id="strip-progress-Intro" class="w-full bg-[#567c2b] transition-all duration-300" style="height: 100%;"></div>
+          </div>
+        </button>
+
+        <!-- Script & Vocab -->
+        <button type="button" id="rail-btn-Script and Vocabulary" onclick="switchSection('Script and Vocabulary')" title="Script and Vocabulary (Huruf & Kosakata)" class="section-rail-btn w-full py-1.5 px-1 flex flex-col items-center cursor-pointer focus:outline-none">
+          <span class="mb-1 truncate w-full text-center flex items-center justify-center gap-0.5"><span class="lock-icon hidden text-[9px]">🔒</span>Scri...</span>
+          <div class="w-2.5 h-11 rounded-full bg-gray-200 border border-gray-400 overflow-hidden flex flex-col justify-end">
+            <div id="strip-progress-Script and Vocabulary" class="w-full bg-[#567c2b] transition-all duration-300" style="height: 0%;"></div>
+          </div>
+        </button>
+
+        <!-- Conversation -->
+        <button type="button" id="rail-btn-Conversation and Expression" onclick="switchSection('Conversation and Expression')" title="Conversation and Expression (Percakapan & Ungkapan)" class="section-rail-btn w-full py-1.5 px-1 flex flex-col items-center cursor-pointer focus:outline-none">
+          <span class="mb-1 truncate w-full text-center flex items-center justify-center gap-0.5"><span class="lock-icon hidden text-[9px]">🔒</span>Co...</span>
+          <div class="w-2.5 h-11 rounded-full bg-gray-200 border border-gray-400 overflow-hidden flex flex-col justify-end">
+            <div id="strip-progress-Conversation and Expression" class="w-full bg-[#567c2b] transition-all duration-300" style="height: 0%;"></div>
+          </div>
+        </button>
+
+        <!-- Listening -->
+        <button type="button" id="rail-btn-Listening Comprehension" onclick="switchSection('Listening Comprehension')" title="Listening Comprehension (Pemahaman Mendengarkan)" class="section-rail-btn w-full py-1.5 px-1 flex flex-col items-center cursor-pointer focus:outline-none">
+          <span class="mb-1 truncate w-full text-center flex items-center justify-center gap-0.5"><span class="lock-icon hidden text-[9px]">🔒</span>List...</span>
+          <div class="w-2.5 h-11 rounded-full bg-gray-200 border border-gray-400 overflow-hidden flex flex-col justify-end">
+            <div id="strip-progress-Listening Comprehension" class="w-full bg-[#567c2b] transition-all duration-300" style="height: 0%;"></div>
+          </div>
+        </button>
+
+        <!-- Reading -->
+        <button type="button" id="rail-btn-Reading Comprehension" onclick="switchSection('Reading Comprehension')" title="Reading Comprehension (Pemahaman Membaca)" class="section-rail-btn w-full py-1.5 px-1 flex flex-col items-center cursor-pointer focus:outline-none">
+          <span class="mb-1 truncate w-full text-center flex items-center justify-center gap-0.5"><span class="lock-icon hidden text-[9px]">🔒</span>Rea...</span>
+          <div class="w-2.5 h-11 rounded-full bg-gray-200 border border-gray-400 overflow-hidden flex flex-col justify-end">
+            <div id="strip-progress-Reading Comprehension" class="w-full bg-[#567c2b] transition-all duration-300" style="height: 0%;"></div>
+          </div>
+        </button>
+      </nav>
+
+      <!-- Kolom Daftar Tombol Nomor Soal (Milik Section Aktif) -->
+      <div class="w-20 sm:w-24 bg-white py-3 px-2.5 flex flex-col items-center gap-1.5 overflow-y-auto max-h-[calc(100vh-100px)] relative z-20" id="question-nav-list">
+        <!-- Diisi secara dinamis oleh JavaScript -->
+      </div>
+    </aside>
+
+    <!-- Area Konten Utama: Halaman Intro (Gerbang Awal Wajib) -->
+    <section id="intro-section-panel" class="flex-1 bg-white flex flex-col justify-between overflow-y-auto">
+      <div>
+        <div class="bg-[#dce8f5] px-5 sm:px-8 py-5 border-b border-[#c5d9ed]">
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Japan Foundation Test for Basic Japanese (JFT-Basic)</h2>
+          <p class="text-sm sm:text-base text-gray-700 mt-1">Registrasi Peserta & Petunjuk Pelaksanaan Ujian (CBT Simulation)</p>
+        </div>
+
+        <div class="p-5 sm:p-8 max-w-4xl space-y-5 text-sm sm:text-base text-gray-800">
+          <!-- Form Identitas Peserta Wajib Sebelum Start -->
+          <div class="bg-emerald-50/70 border-2 border-[#567c2b] rounded-xl p-4 sm:p-5 shadow-2xs space-y-3.5">
+            <div class="flex items-center justify-between border-b border-[#567c2b]/20 pb-2">
+              <h3 class="font-bold text-base sm:text-lg text-[#3b571c] flex items-center gap-2">
+                <span>👤</span> Data Peserta Ujian (Wajib Diisi Sebelum Mulai)
+              </h3>
+              <span id="intro-lock-badge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                🔒 Navigasi Section Terkunci
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label for="intro-candidate-name" class="block text-xs sm:text-sm font-bold text-gray-800 mb-1">
+                  Nama Lengkap Peserta (Candidate Name) <span class="text-red-600">*</span>
+                </label>
+                <input
+                  id="intro-candidate-name"
+                  type="text"
+                  oninput="handleIntroCandidateInput()"
+                  placeholder="Ketik nama lengkap Anda di sini..."
+                  class="w-full px-3.5 py-2.5 bg-white border border-gray-400 rounded-lg text-sm sm:text-base font-medium text-gray-900 focus:ring-2 focus:ring-[#567c2b] focus:border-[#567c2b] outline-none"
+                />
+                <p id="intro-name-error" class="hidden text-xs text-red-600 font-semibold mt-1">
+                  ⚠️ Nama Lengkap Peserta wajib diisi sebelum menekan tombol Start Test!
+                </p>
+              </div>
+              <div>
+                <label for="intro-candidate-id" class="block text-xs sm:text-sm font-bold text-gray-800 mb-1">
+                  Nomor Peserta / Kelas <span class="text-gray-500 font-normal">(Opsional)</span>
+                </label>
+                <input
+                  id="intro-candidate-id"
+                  type="text"
+                  oninput="handleIntroCandidateInput()"
+                  placeholder="Contoh: JFT-2026-001 / Kelas A"
+                  class="w-full px-3.5 py-2.5 bg-white border border-gray-400 rounded-lg text-sm sm:text-base text-gray-900 focus:ring-2 focus:ring-[#567c2b] focus:border-[#567c2b] outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2">
+            <h3 class="font-bold text-base text-gray-900">📋 Daftar Bagian Ujian (Sections):</h3>
+            <p id="intro-sections-hint" class="text-xs sm:text-sm text-gray-600">
+              Seluruh bagian ujian di bawah ini dan menu kiri masih terkunci. Isi <strong>Nama Lengkap Peserta</strong> lalu klik tombol <strong>Start Test / Mulai Ujian</strong> untuk membuka akses dan memulai timer.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2" id="intro-sections-cards">
+              <!-- Diisi dinamis oleh JS -->
+            </div>
+          </div>
+
+          <div class="space-y-1.5 text-xs sm:text-sm text-gray-700 leading-relaxed">
+            <p><strong>1. Navigasi Soal:</strong> Setelah ujian dimulai, klik nomor soal (1, 2, 3, dst.) atau nama section di sidebar kiri, maupun tombol <em>Previous / Next</em> di bagian bawah.</p>
+            <p><strong>2. Bantuan Bahasa:</strong> Klik tombol <strong>Your Language 1</strong> atau <strong>Your Language 2</strong> di bawah kotak pertanyaan biru untuk melihat terjemahan kalimat soal.</p>
+            <p><strong>3. Buat / Edit Soal Mandiri:</strong> Klik tombol hijau <strong>Buat / Edit Soal</strong> di pojok kanan atas untuk mengelola soal, mengatur timer per section, atau mengunduh file HTML ujian.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-gray-200 bg-gray-50 px-5 sm:px-10 py-3.5 flex flex-wrap items-center justify-between gap-2">
+        <span id="intro-footer-status" class="text-xs sm:text-sm text-amber-700 font-medium">
+          ⚠️ Isi Nama Lengkap Peserta terlebih dahulu untuk mengaktifkan tombol Start.
+        </span>
+        <button id="btn-intro-start" type="button" onclick="startExamFromIntro()" class="px-6 py-2.5 rounded border border-[#446321] bg-[#567c2b] hover:bg-[#466622] font-bold text-sm text-white shadow flex items-center gap-2 cursor-pointer transition">
+          <span>Start Test / Mulai Ujian</span>
+          <span>▶</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Area Konten Soal Utama (Kanan) -->
+    <section id="question-section-panel" class="flex-1 bg-white flex flex-col justify-between overflow-y-auto">
+      <div>
+        <!-- Banner Pertanyaan Biru Muda (#dce8f5) -->
+        <div class="bg-[#dce8f5] px-5 sm:px-8 py-4 sm:py-5 border-b border-[#c5d9ed]">
+          <!-- Pemutar Audio / Simulasi Listening (Muncul di Listening atau jika ada URL audio / YouTube) -->
+          <div id="question-audio-box" class="hidden mb-3.5 p-3 bg-white/90 border border-[#b4cde6] rounded flex flex-col gap-3">
+            <div class="flex flex-wrap items-center gap-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-[#4e7525] flex items-center gap-1.5">
+                <span>🔊</span> Audio Listening:
+              </span>
+              <audio id="question-audio-player" controls class="h-8 max-w-full hidden"></audio>
+              <button id="btn-tts-listen" type="button" onclick="speakJapanesePrompt()" class="px-3 py-1.5 bg-[#567c2b] hover:bg-[#466622] text-white text-xs font-semibold rounded flex items-center gap-1.5 cursor-pointer">
+                <span>▶ Putar Suara Teks Jepang (TTS)</span>
+              </button>
+            </div>
+            <div id="question-youtube-wrap" class="hidden w-full max-w-lg rounded overflow-hidden border border-[#b4cde6] bg-black aspect-video">
+              <iframe
+                id="question-youtube-player"
+                src=""
+                title="YouTube Listening Audio"
+                class="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+              ></iframe>
+            </div>
+          </div>
+
+          <div id="question-image-box" class="hidden mb-4">
+            <img
+              id="question-image-preview"
+              src=""
+              alt="Gambar pendukung soal"
+              class="max-h-[420px] max-w-full object-contain rounded-lg border border-[#b4cde6] bg-white"
+            />
+          </div>
+
+          <div id="question-prompt-jp" class="jp-text text-2xl sm:text-[32px] leading-relaxed text-black font-normal tracking-wide">
+            このごろはお金（　　　）大変です。
+          </div>
+        </div>
+
+        <!-- Area Tombol Bahasa Bantuan & Pilihan Jawaban -->
+        <div class="px-5 sm:px-10 py-5 max-w-4xl">
+          <!-- Tombol Your Language 1 & Your Language 2 (Persis Gambar) -->
+          <div class="flex flex-col items-start gap-2 mb-7">
+            <button type="button" onclick="openTranslationModal(1)" class="inline-flex items-center justify-between gap-3 px-3 py-1 bg-white hover:bg-gray-50 border border-gray-500 rounded-[3px] text-xs sm:text-sm font-mono text-gray-800 shadow-2xs cursor-pointer min-w-[215px]">
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                  <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                <span>Your Language 1</span>
+              </span>
+              <svg class="w-3.5 h-3.5 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </button>
+
+            <button type="button" onclick="openTranslationModal(2)" class="inline-flex items-center justify-between gap-3 px-3 py-1 bg-white hover:bg-gray-50 border border-gray-500 rounded-[3px] text-xs sm:text-sm font-mono text-gray-800 shadow-2xs cursor-pointer min-w-[215px]">
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                  <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                <span>Your Language 2</span>
+              </span>
+              <svg class="w-3.5 h-3.5 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Kotak Pilihan Jawaban (1 - 4) -->
+          <div id="options-container" class="flex flex-col gap-3.5 max-w-md sm:max-w-lg pl-0 sm:pl-4">
+            <!-- Diisi secara dinamis oleh JavaScript -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Navigasi Soal (Previous / Next) -->
+      <div class="border-t border-gray-200 bg-gray-50 px-5 sm:px-10 py-3 flex items-center justify-between">
+        <button id="btn-prev" type="button" onclick="prevQuestion()" class="px-4 py-2 rounded border border-gray-400 bg-white hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-sm text-gray-800 flex items-center gap-1.5 cursor-pointer">
+          <span>◀</span> Previous
+        </button>
+        <div class="text-xs sm:text-sm text-gray-600 font-medium text-center">
+          Section ini: <span id="section-answered-counter" class="font-bold text-[#4e7525]">0</span> / <span id="section-total-counter">5</span>
+          <span class="hidden sm:inline text-gray-400 mx-1.5">|</span>
+          <span class="hidden sm:inline">Total Semua: <span id="answered-counter" class="font-bold text-[#4e7525]">0</span> / <span id="total-counter">11</span></span>
+        </div>
+        <button id="btn-next" type="button" onclick="nextQuestion()" class="px-5 py-2 rounded border border-[#446321] bg-[#567c2b] hover:bg-[#466622] disabled:opacity-40 disabled:cursor-not-allowed font-medium text-sm text-white flex items-center gap-1.5 cursor-pointer">
+          Next <span>▶</span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== 4. INTEGRATED QUESTION CREATOR / EDITOR VIEW ==================== -->
+  <main id="editor-view" class="hidden flex-1 bg-slate-100 overflow-y-auto p-4 sm:p-6">
+    <div class="max-w-6xl mx-auto space-y-6">
+      
+      <!-- Banner Atas Mode Pembuat Soal -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <span>🛠️</span> Pembuat & Editor Soal JFT-Basic <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">Mode Admin Aktif</span>
+          </h1>
+          <p class="text-sm text-slate-600 mt-1">
+            Hanya admin yang dapat mengakses halaman ini. Skor ujian berskala <strong>maksimal 250 poin</strong> dengan batas <strong>minimal lulus 200 poin</strong>.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" onclick="logoutAdminMode()" class="px-3.5 py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 text-xs sm:text-sm font-semibold rounded-lg transition cursor-pointer">
+            🔓 Keluar Admin
+          </button>
+          <button onclick="exportJSON()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm font-medium rounded-lg transition cursor-pointer">
+            📤 Ekspor JSON
+          </button>
+          <label class="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs sm:text-sm font-medium rounded-lg transition cursor-pointer">
+            📥 Impor JSON
+            <input type="file" accept=".json" onchange="importJSON(event)" class="hidden" />
+          </label>
+          <button onclick="downloadStandaloneHTML()" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-semibold rounded-lg transition shadow-xs cursor-pointer">
+            💾 Unduh File HTML Ujian
+          </button>
+        </div>
+      </div>
+
+      <!-- Pengaturan Umum Ujian -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <h2 class="text-base font-bold text-slate-800 mb-3 border-b pb-2">⚙️ Pengaturan Header, PIN Admin & Durasi Timer Per Section</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Judul Tes (Sub-header Kiri)</label>
+            <input id="cfg-test-title" type="text" oninput="updateConfig()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Kandidat</label>
+            <input id="cfg-candidate-name" type="text" oninput="updateConfig()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">PIN / Sandi Admin</label>
+            <input id="cfg-admin-pin" type="text" oninput="updateConfig()" title="PIN rahasia untuk masuk ke mode edit soal admin" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-[#567c2b] outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Scri... (Menit)</label>
+            <input id="cfg-timer-script" type="number" min="1" max="180" oninput="updateConfig()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Co... (Menit)</label>
+            <input id="cfg-timer-conv" type="number" min="1" max="180" oninput="updateConfig()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">List... / Rea... (Menit)</label>
+            <div class="flex gap-1.5">
+              <input id="cfg-timer-list" type="number" min="1" max="180" title="Durasi Listening (Menit)" oninput="updateConfig()" class="w-1/2 px-2 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
+              <input id="cfg-timer-read" type="number" min="1" max="180" title="Durasi Reading (Menit)" oninput="updateConfig()" class="w-1/2 px-2 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
+            </div>
+          </div>
+        </div>
+        <div class="mt-3 flex justify-end">
+          <button type="button" onclick="resetTimerFromConfig()" class="px-3.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-xs font-semibold cursor-pointer">
+            ⏱️ Terapkan & Reset Semua Timer Section
+          </button>
+        </div>
+      </div>
+
+      <!-- Grid 2 Kolom: Form Tambah/Edit Soal & Daftar Soal -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Kolom Kiri (7/12): Form Input Soal -->
+        <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+          <div class="flex items-center justify-between border-b pb-3 mb-4">
+            <h2 id="form-editor-title" class="text-base font-bold text-slate-800">➕ Tambah Soal Baru</h2>
+            <button id="btn-cancel-edit" onclick="resetForm()" class="hidden text-xs text-red-600 hover:underline font-semibold cursor-pointer">
+              Batal Edit (Mode Tambah Baru)
+            </button>
+          </div>
+
+          <form id="question-form" onsubmit="saveQuestionFromForm(event)" class="space-y-4">
+            <input type="hidden" id="edit-q-index" value="-1" />
+
+            <!-- Seksi Soal -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori / Seksi (Section)</label>
+              <select id="f-section" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#5b7836] outline-none">
+                <option value="Script and Vocabulary">Script and Vocabulary (Huruf & Kosakata)</option>
+                <option value="Conversation and Expression">Conversation and Expression (Percakapan & Ungkapan)</option>
+                <option value="Listening Comprehension">Listening Comprehension (Pemahaman Mendengarkan)</option>
+                <option value="Reading Comprehension">Reading Comprehension (Pemahaman Membaca)</option>
+              </select>
+            </div>
+
+            <!-- Instruksi Soal -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Teks Instruksi (Baris Atas Kotak Biru)</label>
+              <input id="f-instruction" type="text" required value="Read the sentence and choose the word that fits in (      ) most." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
+            </div>
+
+            <!-- Teks Bacaan / Wacana (Opsional - Cocok untuk Reading Comprehension) -->
+            <!-- Gambar Soal: unggah file, tempel gambar, atau gunakan URL -->
+            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+              <label for="f-image" class="block text-xs font-semibold text-slate-700">Gambar Soal (Opsional)</label>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input
+                  id="f-image"
+                  type="url"
+                  oninput="previewEditorImage()"
+                  placeholder="Tempel URL gambar (https://...) atau klik Pilih File"
+                  class="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#567c2b] outline-none"
+                />
+                <label class="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer text-center shrink-0">
+                  🖼️ Pilih File Gambar
+                  <input type="file" accept="image/*" onchange="handleQuestionImageUpload(event)" class="hidden" />
+                </label>
+                <button
+                  type="button"
+                  onclick="clearQuestionImage()"
+                  class="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-semibold cursor-pointer shrink-0"
+                >Hapus</button>
+              </div>
+              <p class="text-[11px] text-slate-500">
+                Bisa unggah JPG/PNG/WebP, menempel gambar dengan Ctrl+V, atau memasukkan URL gambar langsung.
+                Untuk paste, salin gambar terlebih dahulu lalu tekan Ctrl+V saat berada di editor.
+              </p>
+              <div id="f-image-preview-wrap" class="hidden mt-2 p-2.5 bg-white border border-slate-200 rounded-lg">
+                <div class="text-[11px] font-medium text-slate-600 mb-2">Pratinjau gambar:</div>
+                <img id="f-image-preview" src="" alt="Pratinjau gambar soal" class="max-h-64 max-w-full object-contain rounded border border-slate-200" />
+              </div>
+            </div>
+
+            <!-- Audio Soal (Upload File MP3/WAV/OGG, Link Audio, atau Link YouTube) -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Audio Soal (Opsional - Pilih File Audio, Link URL MP3/OGG, atau Link YouTube)</label>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input id="f-audio" type="text" oninput="previewEditorAudio()" placeholder="Tempel link URL audio (.mp3/.ogg) atau link YouTube (https://youtu.be/... / youtube.com/watch?v=...)..." class="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#567c2b] outline-none" />
+                <label class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold cursor-pointer shrink-0 text-center">
+                  🎵 Pilih File Audio
+                  <input type="file" accept="audio/*" onchange="handleQuestionAudioUpload(event)" class="hidden" />
+                </label>
+                <button type="button" onclick="clearQuestionAudio()" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-semibold cursor-pointer shrink-0">
+                  Hapus
+                </button>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1">Mendukung unggah file audio dari perangkat, link file audio langsung, atau tautan YouTube. Kosongkan jika ingin memakai suara TTS otomatis.</p>
+              <div id="f-audio-preview-wrap" class="hidden mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                <div id="f-audio-preview-label" class="text-[11px] font-medium text-slate-600">Pratinjau audio soal:</div>
+                <audio id="f-audio-preview-player" controls class="h-8 w-full hidden"></audio>
+                <div id="f-youtube-preview-wrap" class="hidden w-full max-w-md rounded overflow-hidden border border-slate-300 bg-black aspect-video">
+                  <iframe
+                    id="f-youtube-preview-player"
+                    src=""
+                    title="Pratinjau YouTube Audio"
+                    class="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen
+                  ></iframe>
+                </div>
+              </div>
+            </div>
+
+            <!-- Teks Pertanyaan Jepang -->
+            <div>
+              <div class="flex flex-wrap items-center justify-between gap-1 mb-1">
+                <label class="text-xs font-semibold text-slate-700">Pertanyaan Bahasa Jepang (Teks Utama)</label>
+                <div class="flex gap-1.5">
+                  <button type="button" onclick="insertBlankToken()" class="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-[11px] font-medium cursor-pointer">
+                    + Sisipkan Kurung Kosong （　　　）
+                  </button>
+                  <button type="button" onclick="insertFuriganaTemplate()" class="px-2 py-0.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded text-[11px] font-medium cursor-pointer">
+                    + Furigana &lt;ruby&gt;
+                  </button>
+                </div>
+              </div>
+              <textarea id="f-prompt" rows="2" required placeholder="Contoh: このごろはお金（　　　）大変です。" class="jp-text w-full px-3 py-2 border border-slate-300 rounded-lg text-base focus:ring-2 focus:ring-[#5b7836] outline-none"></textarea>
+            </div>
+
+            <!-- Pilihan Jawaban 1 - 4 -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Pilihan Jawaban & Kunci Jawaban Benar</label>
+              <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <input type="radio" name="correctOption" value="0" checked class="w-4 h-4 accent-[#5b7836] cursor-pointer" title="Tandai sebagai jawaban benar" />
+                  <span class="font-bold text-sm w-5">1.</span>
+                  <input id="f-opt-0" type="text" required placeholder="Pilihan 1 (misal: ないで)" class="jp-text flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#5b7836] outline-none" />
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="radio" name="correctOption" value="1" class="w-4 h-4 accent-[#5b7836] cursor-pointer" title="Tandai sebagai jawaban benar" />
+                  <span class="font-bold text-sm w-5">2.</span>
+                  <input id="f-opt-1" type="text" required placeholder="Pilihan 2 (misal: なくて)" class="jp-text flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#5b7836] outline-none" />
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="radio" name="correctOption" value="2" class="w-4 h-4 accent-[#5b7836] cursor-pointer" title="Tandai sebagai jawaban benar" />
+                  <span class="font-bold text-sm w-5">3.</span>
+                  <input id="f-opt-2" type="text" required placeholder="Pilihan 3 (misal: なくても)" class="jp-text flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#5b7836] outline-none" />
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="radio" name="correctOption" value="3" class="w-4 h-4 accent-[#5b7836] cursor-pointer" title="Tandai sebagai jawaban benar" />
+                  <span class="font-bold text-sm w-5">4.</span>
+                  <input id="f-opt-3" type="text" required placeholder="Pilihan 4 (misal: なければ)" class="jp-text flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#5b7836] outline-none" />
+                </div>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1">* Pilih tombol radio di sebelah kiri untuk menentukan kunci jawaban yang benar.</p>
+            </div>
+
+            <!-- Terjemahan Bantuan (Your Language 1 & 2) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Terjemahan 1 (Bahasa Indonesia - Opsional)</label>
+                <input id="f-trans-1" type="text" placeholder="Contoh: Akhir-akhir ini sulit karena tidak ada uang." class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#5b7836] outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Terjemahan 2 (English - Opsional)</label>
+                <input id="f-trans-2" type="text" placeholder="Contoh: Lately, it has been tough without money." class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#5b7836] outline-none" />
+              </div>
+            </div>
+
+            <!-- Pembahasan Jawaban -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Pembahasan / Penjelasan (Muncul saat Finish Section)</label>
+              <textarea id="f-explanation" rows="2" placeholder="Penjelasan tata bahasa atau kosakata..." class="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-[#5b7836] outline-none"></textarea>
+            </div>
+
+            <div class="flex items-center gap-3 pt-2">
+              <button type="submit" class="px-5 py-2.5 bg-[#5b7836] hover:bg-[#4a632b] text-white font-semibold text-sm rounded-lg shadow transition cursor-pointer">
+                💾 Simpan Soal
+              </button>
+              <button type="button" onclick="resetForm()" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium text-sm rounded-lg transition cursor-pointer">
+                Bersihkan Form
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Kolom Kanan (5/12): Daftar Soal Saat Ini -->
+        <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-3 mb-3">
+            <h2 class="text-base font-bold text-slate-800">📋 Daftar Soal (<span id="editor-q-count">11</span>)</h2>
+            <div class="flex items-center gap-2">
+              <select id="editor-filter-section" onchange="renderEditorQuestionList()" class="text-xs border border-slate-300 rounded px-2 py-1 bg-white">
+                <option value="ALL">Semua Section</option>
+                <option value="Script and Vocabulary">Script & Vocabulary</option>
+                <option value="Conversation and Expression">Conversation & Expression</option>
+                <option value="Listening Comprehension">Listening Comprehension</option>
+                <option value="Reading Comprehension">Reading Comprehension</option>
+              </select>
+              <button type="button" onclick="restoreDefaultQuestions()" class="text-xs text-slate-500 hover:text-red-600 underline cursor-pointer">
+                Reset Default
+              </button>
+            </div>
+          </div>
+          <div id="editor-question-list" class="space-y-2.5 overflow-y-auto max-h-[680px] pr-1">
+            <!-- Diisi secara dinamis -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== 5. MODAL TERJEMAHAN (YOUR LANGUAGE 1 & 2) ==================== -->
+  <div id="translation-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl border border-gray-300 max-w-md w-full overflow-hidden">
+      <div class="bg-[#5b7836] text-white px-4 py-2.5 flex items-center justify-between">
+        <span id="trans-modal-title" class="font-bold text-sm">Your Language 1 (Bahasa Indonesia)</span>
+        <button onclick="closeTranslationModal()" class="text-white hover:text-gray-200 font-bold text-lg leading-none cursor-pointer">&times;</button>
+      </div>
+      <div class="p-5 space-y-3 text-sm text-gray-800">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Instruksi:</span>
+          <p id="trans-modal-instruction" class="mt-0.5 font-medium"></p>
+        </div>
+        <div class="border-t pt-2.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Terjemahan Kalimat Soal:</span>
+          <p id="trans-modal-text" class="mt-1 text-base text-gray-900"></p>
+        </div>
+      </div>
+      <div class="bg-gray-100 px-4 py-2.5 flex justify-end">
+        <button onclick="closeTranslationModal()" class="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-white text-xs font-semibold rounded cursor-pointer">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 6. MODAL FINISH SECTION & HASIL EVALUASI ==================== -->
+  <div id="finish-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl border border-gray-300 max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="bg-[#111111] text-white px-5 py-3.5 flex items-center justify-between">
+        <h3 class="font-bold text-base sm:text-lg">Hasil Evaluasi Keseluruhan — JFT-Basic</h3>
+        <button type="button" onclick="closeFinishModal()" class="text-gray-300 hover:text-white text-2xl leading-none cursor-pointer">&times;</button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-5">
+        <!-- Identitas Peserta pada Hasil Akhir -->
+        <div class="bg-[#f4f8ef] border border-[#c8dcb3] rounded-lg px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
+          <div>
+            <span class="text-gray-600 font-semibold">Nama Peserta:</span>
+            <span id="res-candidate-name" class="font-bold text-gray-900 ml-1">-</span>
+          </div>
+          <div id="res-candidate-id-wrap" class="hidden">
+            <span class="text-gray-600 font-semibold">No. Peserta / Kelas:</span>
+            <span id="res-candidate-id" class="font-bold text-gray-900 ml-1">-</span>
+          </div>
+        </div>
+
+        <!-- Ringkasan Skor -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+          <div class="bg-slate-100 p-3.5 rounded-lg border border-slate-200">
+            <div class="text-xs text-slate-500 font-semibold">Total Poin (Maks. 250)</div>
+            <div id="res-points-score" class="text-2xl font-bold text-[#567c2b] mt-1">0 / 250</div>
+            <div id="res-correct-count" class="text-xs text-slate-500 font-medium mt-0.5">Benar: 0 / 11 soal</div>
+          </div>
+          <div class="bg-slate-100 p-3.5 rounded-lg border border-slate-200">
+            <div class="text-xs text-slate-500 font-semibold">Skor Persentase</div>
+            <div id="res-percentage" class="text-2xl font-bold text-blue-700 mt-1">0%</div>
+            <div class="text-xs text-slate-500 font-medium mt-0.5">Target lulus: ≥ 200 poin</div>
+          </div>
+          <div class="bg-slate-100 p-3.5 rounded-lg border border-slate-200">
+            <div class="text-xs text-slate-500 font-semibold">Status Kelulusan (Min. 200 Poin)</div>
+            <div id="res-status" class="text-lg font-bold text-emerald-700 mt-1.5">LULUS</div>
+          </div>
+        </div>
+
+        <!-- Papan Pengumuman Skor Peserta (Leaderboard) -->
+        <div class="border border-amber-300 bg-amber-50/50 rounded-xl p-4 space-y-2.5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h4 class="font-bold text-sm text-gray-900 flex items-center gap-1.5">
+              <span>🏆</span> Papan Pengumuman Skor Peserta (Maks. 250 Poin • Lulus ≥ 200)
+            </h4>
+            <button type="button" onclick="clearScoreboard()" class="text-xs text-red-600 hover:underline font-semibold cursor-pointer">
+              Hapus Riwayat Papan Skor
+            </button>
+          </div>
+          <div class="overflow-x-auto bg-white rounded-lg border border-gray-200">
+            <table class="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr class="bg-[#567c2b] text-white">
+                  <th class="py-2 px-3">#</th>
+                  <th class="py-2 px-3">Nama Peserta</th>
+                  <th class="py-2 px-3">No. / Kelas</th>
+                  <th class="py-2 px-3 text-center">Benar</th>
+                  <th class="py-2 px-3 text-center">Poin (/250)</th>
+                  <th class="py-2 px-3 text-center">Status (≥200)</th>
+                  <th class="py-2 px-3">Tanggal & Jam</th>
+                </tr>
+              </thead>
+              <tbody id="scoreboard-tbody" class="divide-y divide-gray-200">
+                <!-- Diisi dinamis oleh JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Rincian Pembahasan Per Soal -->
+        <div>
+          <h4 class="font-bold text-sm text-gray-800 mb-2.5">Pembahasan Jawaban Semua Section:</h4>
+          <div id="res-review-list" class="space-y-3">
+            <!-- Diisi dinamis -->
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gray-100 px-5 py-3 border-t flex flex-wrap items-center justify-between gap-2">
+        <button type="button" onclick="restartExam()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs sm:text-sm rounded-lg cursor-pointer">
+          🔄 Ulangi Ujian dari Awal
+        </button>
+        <button type="button" onclick="closeFinishModal()" class="px-5 py-2 bg-[#567c2b] hover:bg-[#466622] text-white font-semibold text-xs sm:text-sm rounded-lg cursor-pointer">
+          Tutup Hasil
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Login Admin untuk Akses Buat / Edit Soal -->
+  <div id="admin-login-modal" style="display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.65); z-index: 99999; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="bg-white rounded-xl shadow-2xl border border-gray-300 max-w-sm w-full overflow-hidden opacity-100">
+      <div class="bg-[#111111] text-white px-4 py-3 flex items-center justify-between">
+        <span class="font-bold text-sm flex items-center gap-1.5"><span>🔐</span> Login Khusus Admin</span>
+        <button id="btn-close-admin-top" type="button" onclick="closeAdminLoginModal()" class="text-gray-300 hover:text-white font-bold text-xl leading-none cursor-pointer">&times;</button>
+      </div>
+      <form id="admin-login-form" onsubmit="submitAdminLogin(event)" class="p-4 space-y-3 bg-white">
+        <p class="text-xs text-gray-600 leading-relaxed">
+          Fitur pembuatan dan pengeditan soal hanya diperuntukkan bagi admin. Masukkan PIN admin untuk melanjutkan.
+        </p>
+        <div>
+          <label for="admin-pin-input" class="block text-xs font-semibold text-gray-700 mb-1">PIN / Kata Sandi Admin</label>
+          <input id="admin-pin-input" type="password" required placeholder="Masukkan PIN admin..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
+          <p class="text-[11px] text-slate-500 mt-1">PIN default: <code class="font-mono font-bold text-slate-700">admin123</code> (dapat diubah di pengaturan admin).</p>
+        </div>
+        <div class="pt-1 flex justify-end gap-2">
+          <button id="btn-close-admin-cancel" type="button" onclick="closeAdminLoginModal()" class="px-3.5 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-lg cursor-pointer">Batal</button>
+          <button type="submit" class="px-4 py-1.5 bg-[#567c2b] hover:bg-[#466622] text-white text-xs font-semibold rounded-lg cursor-pointer">Masuk Admin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Khusus Papan Pengumuman Skor dari Header -->
+  <div id="scoreboard-modal" style="display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.65); z-index: 9999; align-items: center; justify-content: center; padding: 1rem;">
+    <div class="bg-white rounded-xl shadow-2xl border border-gray-300 max-w-3xl w-full max-h-[88vh] flex flex-col overflow-hidden opacity-100">
+      <div class="bg-[#111111] text-white px-5 py-3.5 flex items-center justify-between">
+        <h3 class="font-bold text-base sm:text-lg flex items-center gap-2">
+          <span>🏆</span>
+          <span>Papan Pengumuman Skor Peserta</span>
+        </h3>
+        <button id="btn-close-scoreboard-top" type="button" class="text-gray-300 hover:text-white text-2xl leading-none cursor-pointer">&times;</button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-3 bg-white">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <p class="text-xs sm:text-sm text-gray-600">
+            Menampilkan catatan nama, hasil nilai, serta tanggal dan jam penyelesaian ujian peserta.
+          </p>
+          <button type="button" onclick="clearScoreboard()" class="text-xs text-red-600 hover:underline font-semibold cursor-pointer">
+            Hapus Riwayat Papan Skor
+          </button>
+        </div>
+
+        <div class="overflow-x-auto bg-white rounded-lg border border-gray-200">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="bg-[#567c2b] text-white">
+                <th class="py-2 px-3">#</th>
+                <th class="py-2 px-3">Nama Peserta</th>
+                <th class="py-2 px-3">No. / Kelas</th>
+                <th class="py-2 px-3 text-center">Benar</th>
+                <th class="py-2 px-3 text-center">Poin (/250)</th>
+                <th class="py-2 px-3 text-center">Status (≥200)</th>
+                <th class="py-2 px-3">Tanggal & Jam</th>
+              </tr>
+            </thead>
+            <tbody id="header-scoreboard-tbody" class="divide-y divide-gray-200">
+              <!-- Diisi dinamis oleh JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bg-gray-100 px-5 py-3 border-t flex justify-end">
+        <button id="btn-close-scoreboard-bottom" type="button" class="px-5 py-2 bg-[#567c2b] hover:bg-[#466622] text-white font-semibold text-xs sm:text-sm rounded-lg cursor-pointer">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifikasi Non-Blocking (Pengganti alert) -->
+  <div id="toast-box" class="hidden fixed bottom-5 right-5 bg-gray-900 text-white px-4 py-2.5 rounded-lg shadow-lg text-xs sm:text-sm font-medium z-50 transition-opacity">
+  </div>
+
+  <!-- ==================== JAVASCRIPT LOGIC ==================== -->
+  <script>
+    const STORAGE_KEY = "jft_basic_cbt_simulator_v1";
+    const MAX_EXAM_POINTS = 250;
+    const PASSING_EXAM_POINTS = 200;
+    const SECTION_ORDER = [
+      "Intro",
+      "Script and Vocabulary",
+      "Conversation and Expression",
+      "Listening Comprehension",
+      "Reading Comprehension"
+    ];
+
+    const QUESTION_SECTIONS = [
+      "Script and Vocabulary",
+      "Conversation and Expression",
+      "Listening Comprehension",
+      "Reading Comprehension"
+    ];
+
+    // Data Soal Default Multi-Section (Lengkap 4 Section + Soal No. 5 dari Gambar Referensi)
+    const DEFAULT_QUESTIONS = [
+      // --- SECTION 1: Script and Vocabulary ---
+      {
+        id: 101,
+        section: "Script and Vocabulary",
+        instruction: "Read the sentence and choose the word that fits in (      ) most.",
+        passage: "",
+        imageUrl: "",
+        audioUrl: "",
+        prompt: "きのう　ともだちと　えいがを（　　　）に　いきました。",
+        options: ["みます", "みて", "み", "みた"],
+        correctIndex: 2,
+        trans1: "Kemarin saya pergi menonton film bersama teman.",
+        trans2: "Yesterday I went to watch a movie with my friend.",
+        explanation: "Pola kalimat tujuan pergi: [Kata Kerja bentuk ます tanpa ます] + に いきます (見ます → 見に行きます)."
+      },
+      {
+        id: 102,
+        section: "Script and Vocabulary",
+        instruction: "Read the sentence and choose the word that fits in (      ) most.",
+        passage: "",
+        audioUrl: "",
+        prompt: "この　へやは　あかるくて（　　　）ですね。",
+        options: ["きれい", "きれいだ", "きれいで", "きれいな"],
+        correctIndex: 0,
+        trans1: "Kamar ini terang dan bersih/indah ya.",
+        trans2: "This room is bright and clean/pretty, isn't it?",
+        explanation: "Kata sifat-na (きれい) di akhir kalimat sebelum ね tidak memerlukan だ."
+      },
+      {
+        id: 103,
+        section: "Script and Vocabulary",
+        instruction: "Read the sentence and choose the word that fits in (      ) most.",
+        passage: "",
+        audioUrl: "",
+        prompt: "あしたは　あめが（　　　）かもしれません。",
+        options: ["ふり", "ふる", "ふって", "ふります"],
+        correctIndex: 1,
+        trans1: "Besok mungkin akan turun hujan.",
+        trans2: "It might rain tomorrow.",
+        explanation: "Pola 「〜かもしれません」 didahului oleh bentuk kamus / biasa (降る)."
+      },
+      {
+        id: 104,
+        section: "Script and Vocabulary",
+        instruction: "Read the sentence and choose the word that fits in (      ) most.",
+        passage: "",
+        audioUrl: "",
+        prompt: "まいあさ　７じに　コーヒーを（　　　）います。",
+        options: ["のんで", "のむ", "のんだ", "のまない"],
+        correctIndex: 0,
+        trans1: "Setiap pagi jam 7 saya sedang/rutin minum kopi.",
+        trans2: "Every morning at 7 I drink/am drinking coffee.",
+        explanation: "Bentuk 〜ています menyatakan kebiasaan/kegiatan berulang (飲んでいます)."
+      },
+      {
+        id: 105,
+        section: "Script and Vocabulary",
+        instruction: "Read the sentence and choose the word that fits in (      ) most.",
+        passage: "",
+        audioUrl: "",
+        prompt: "このごろはお金（　　　）大変です。",
+        options: ["ないで", "なくて", "なくても", "なければ"],
+        correctIndex: 1,
+        trans1: "Akhir-akhir ini rasanya sulit karena tidak punya uang.",
+        trans2: "Lately, it has been tough because I don't have money.",
+        explanation: "Untuk menyatakan sebab/alasan dari kata sifat negatif (ない → なくて) digunakan bentuk -te."
+      },
+
+      // --- SECTION 2: Conversation and Expression ---
+      {
+        id: 201,
+        section: "Conversation and Expression",
+        instruction: "Read the conversation and choose the expression that fits in (      ) most.",
+        passage: "A: すみません、えきは　どちらですか。\nB: あそこに　みえる　たてものですよ。",
+        audioUrl: "",
+        prompt: "A: ありがとうございます。（　　　）。",
+        options: ["どういたしまして", "おやすみなさい", "いってらっしゃい", "ごちそうさまでした"],
+        correctIndex: 0,
+        trans1: "A: Terima kasih. (Sama-sama).",
+        trans2: "A: Thank you. (You're welcome).",
+        explanation: "Balasan wajar saat seseorang mengucapkan ありがとうございます adalah どういたしまして."
+      },
+      {
+        id: 202,
+        section: "Conversation and Expression",
+        instruction: "Read the conversation and choose the sentence that fits in (      ) most.",
+        passage: "せんせい: テストは　あしたの　９じからです。",
+        audioUrl: "",
+        prompt: "がくせい: （　　　）。もういちど　おねがいします。",
+        options: ["すみません", "おめでとうございます", "おつかれさまでした", "いただきます"],
+        correctIndex: 0,
+        trans1: "Siswa: (Maaf). Mohon ulangi sekali lagi.",
+        trans2: "Student: (Excuse me). Please say it one more time.",
+        explanation: "Ungkapan すみません digunakan untuk meminta perhatian atau maaf saat meminta pengulangan."
+      },
+
+      // --- SECTION 3: Listening Comprehension ---
+      {
+        id: 301,
+        section: "Listening Comprehension",
+        instruction: "Listen to the audio (or press Play TTS) and choose the best response.",
+        passage: "",
+        audioUrl: "",
+        prompt: "でんしゃの　なかで　ひとに　ききます。「（　　　）この　でんしゃは　しんじゅくに　いきますか。」",
+        options: ["すみませんが", "せっかくですが", "なるほど", "ざんねんですが"],
+        correctIndex: 0,
+        trans1: "Bertanya kepada orang di dalam kereta: '(Permisi,) apakah kereta ini pergi ke Shinjuku?'",
+        trans2: "Asking someone on the train: '(Excuse me,) does this train go to Shinjuku?'",
+        explanation: "すみませんが digunakan sebagai pembuka sopan sebelum mengajukan pertanyaan."
+      },
+      {
+        id: 302,
+        section: "Listening Comprehension",
+        instruction: "Listen to the situation and choose what you should say.",
+        passage: "",
+        audioUrl: "",
+        prompt: "かばんを　わすれて　へやに　もどります。かぞくに　なんといいますか。",
+        options: ["いってきます", "ちょっと　もどります", "ただいま", "おかえりなさい"],
+        correctIndex: 1,
+        trans1: "Kembali ke kamar karena lupa tas. Apa yang Anda katakan kepada keluarga?",
+        trans2: "Going back to your room because you forgot your bag. What do you say to your family?",
+        explanation: "Saat kembali sebentar mengambil barang yang tertinggal, digunakan ungkapan ちょっともどります."
+      },
+
+      // --- SECTION 4: Reading Comprehension ---
+      {
+        id: 401,
+        section: "Reading Comprehension",
+        instruction: "Read the notice and choose the correct answer for (      ).",
+        passage: "【お知らせ】\nらいしゅうの　げつようびは　としょかんが　やすみです。\nほんを　かりたい　ひとは　きんようびまでに　きてください。",
+        audioUrl: "",
+        prompt: "としょかんは　いつ　やすみですか。",
+        options: ["げつようび", "すいようび", "きんようび", "にちようび"],
+        correctIndex: 0,
+        trans1: "Kapan perpustakaan libur? (Hari Senin).",
+        trans2: "When is the library closed? (Monday).",
+        explanation: "Pada pengumuman tertulis 「らいしゅうの げつようびは としょかんが やすみです」."
+      },
+      {
+        id: 402,
+        section: "Reading Comprehension",
+        instruction: "Read the memo and choose the word that fits in (      ) most.",
+        passage: "みきさんへ\nきょうは　６じに　かいしゃを　でます。\nばんごはんは　そとで　たべて　ください。\nたなか",
+        audioUrl: "",
+        prompt: "たなかさんは　きょう　（　　　）かいしゃを　でますか。",
+        options: ["６じに", "７じに", "８じに", "９じに"],
+        correctIndex: 0,
+        trans1: "Jam berapa Tanaka keluar dari kantor hari ini? (Jam 6).",
+        trans2: "What time will Tanaka leave the office today? (At 6 o'clock).",
+        explanation: "Sesuai pesan singkat: 「きょうは ６じに かいしゃを でます」."
+      }
+    ];
+
+    // State Aplikasi (Diawali di Intro dalam status terkunci hingga tombol Start ditekan)
+    let appState = {
+      testTitle: "Japan Foundation Test for Basic Japanese",
+      candidateName: "",
+      candidateId: "",
+      adminPin: "admin123",
+      isExamStarted: false,
+      sectionTimers: {
+        "Script and Vocabulary": 15,
+        "Conversation and Expression": 15,
+        "Listening Comprehension": 15,
+        "Reading Comprehension": 15
+      },
+      questions: JSON.parse(JSON.stringify(DEFAULT_QUESTIONS)),
+      scoreboard: [],
+      activeSection: "Intro",
+      currentQuestionId: 101,
+      userAnswers: {}
+    };
+
+    let sectionRemainingSeconds = {
+      "Script and Vocabulary": 15 * 60,
+      "Conversation and Expression": 15 * 60,
+      "Listening Comprehension": 15 * 60,
+      "Reading Comprehension": 15 * 60
+    };
+
+    let timerInterval = null;
+    let isEditorMode = false;
+    let isAdminAuthenticated = false;
+    window.addEventListener("DOMContentLoaded", () => {
+      loadFromStorage();
+      syncHeaderUI();
+      renderAllCBT();
+      startTimer();
+
+      const openBoardBtn = document.getElementById("btn-open-scoreboard");
+      if (openBoardBtn) {
+        openBoardBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openScoreboardModal();
+        });
+      }
+
+      const closeTopBtn = document.getElementById("btn-close-scoreboard-top");
+      if (closeTopBtn) {
+        closeTopBtn.addEventListener("click", closeScoreboardModal);
+      }
+
+      const closeBottomBtn = document.getElementById("btn-close-scoreboard-bottom");
+      if (closeBottomBtn) {
+        closeBottomBtn.addEventListener("click", closeScoreboardModal);
+      }
+
+      const closeAdminTopBtn = document.getElementById("btn-close-admin-top");
+      if (closeAdminTopBtn) {
+        closeAdminTopBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closeAdminLoginModal();
+        });
+      }
+
+      const closeAdminCancelBtn = document.getElementById("btn-close-admin-cancel");
+      if (closeAdminCancelBtn) {
+        closeAdminCancelBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closeAdminLoginModal();
+        });
+      }
+
+      const adminLoginForm = document.getElementById("admin-login-form");
+      if (adminLoginForm) {
+        adminLoginForm.addEventListener("submit", submitAdminLogin);
+      }
+
+      const adminModalBackdrop = document.getElementById("admin-login-modal");
+      if (adminModalBackdrop) {
+        adminModalBackdrop.addEventListener("click", (e) => {
+          if (e.target === adminModalBackdrop) {
+            closeAdminLoginModal();
+          }
+        });
+      }
+
+      // Mendukung copas (Ctrl+V / Cmd+V) gambar langsung saat berada di mode editor soal
+      document.addEventListener("paste", (e) => {
+        if (!isEditorMode) return;
+        const target = e.target;
+        // Biarkan paste teks normal jika sedang mengetik di input/textarea selain kolom gambar
+        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA") && target.id !== "f-image") {
+          const hasImageItem = Array.from(e.clipboardData?.items || []).some(item => item.type && item.type.startsWith("image/"));
+          if (!hasImageItem) return;
+        }
+        handleQuestionImagePaste(e);
+      });
+    });
+
+    // Simpan & Muat dari LocalStorage
+    function saveToStorage() {
+      const scorePayload = JSON.stringify(appState.scoreboard || []);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          testTitle: appState.testTitle,
+          candidateName: appState.candidateName,
+          candidateId: appState.candidateId,
+          adminPin: appState.adminPin,
+          sectionTimers: appState.sectionTimers,
+          questions: appState.questions,
+          scoreboard: appState.scoreboard
+        }));
+      } catch (e) {
+        console.warn("Gagal menyimpan paket lengkap ke localStorage (kemungkinan ukuran gambar/audio besar):", e);
+        // Cadangan khusus riwayat skor & pengaturan agar riwayat skor tetap tersimpan aman
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_scoreboard`, scorePayload);
+          localStorage.setItem(`${STORAGE_KEY}_meta`, JSON.stringify({
+            testTitle: appState.testTitle,
+            candidateName: appState.candidateName,
+            candidateId: appState.candidateId,
+            adminPin: appState.adminPin,
+            sectionTimers: appState.sectionTimers
+          }));
+        } catch (err2) {
+          console.warn("Gagal menyimpan cadangan riwayat skor:", err2);
+        }
+      }
+    }
+
+    function loadFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.testTitle) appState.testTitle = parsed.testTitle;
+          if (typeof parsed.candidateName === "string") appState.candidateName = parsed.candidateName;
+          if (typeof parsed.candidateId === "string") appState.candidateId = parsed.candidateId;
+          if (typeof parsed.adminPin === "string" && parsed.adminPin.trim() !== "") appState.adminPin = parsed.adminPin.trim();
+          if (parsed.sectionTimers) {
+            appState.sectionTimers = { ...appState.sectionTimers, ...parsed.sectionTimers };
+          }
+          if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+            appState.questions = parsed.questions.map((q, idx) => ({
+              id: q && q.id !== undefined ? q.id : (1000 + idx),
+              section: QUESTION_SECTIONS.includes(q && q.section) ? q.section : "Script and Vocabulary",
+              instruction: (q && typeof q.instruction === "string" && q.instruction.trim() !== "")
+                ? q.instruction
+                : "Read the sentence and choose the word that fits in (      ) most.",
+              passage: (q && typeof q.passage === "string") ? q.passage : "",
+              imageUrl: (q && typeof q.imageUrl === "string") ? q.imageUrl : "",
+              audioUrl: (q && typeof q.audioUrl === "string") ? q.audioUrl : "",
+              prompt: (q && typeof q.prompt === "string") ? q.prompt : "",
+              options: Array.isArray(q && q.options) && q.options.length > 0
+                ? q.options.slice(0, 4).map(opt => String(opt ?? ""))
+                : ["", "", "", ""],
+              correctIndex: (q && typeof q.correctIndex === "number" && q.correctIndex >= 0 && q.correctIndex < 4)
+                ? q.correctIndex
+                : 0,
+              trans1: (q && typeof q.trans1 === "string") ? q.trans1 : "",
+              trans2: (q && typeof q.trans2 === "string") ? q.trans2 : "",
+              explanation: (q && typeof q.explanation === "string") ? q.explanation : ""
+            }));
+          }
+          if (Array.isArray(parsed.scoreboard)) {
+            appState.scoreboard = parsed.scoreboard;
+          }
+        }
+      } catch (e) {
+        console.warn("Gagal memuat dari localStorage:", e);
+      }
+
+      if (!Array.isArray(appState.questions) || appState.questions.length === 0) {
+        appState.questions = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
+      }
+      if (!appState.userAnswers || typeof appState.userAnswers !== "object") {
+        appState.userAnswers = {};
+      }
+
+      // Sinkronkan cadangan riwayat skor jika ada
+      try {
+        const backupScoreRaw = localStorage.getItem(`${STORAGE_KEY}_scoreboard`);
+        if (backupScoreRaw) {
+          const backupScores = JSON.parse(backupScoreRaw);
+          if (Array.isArray(backupScores) && backupScores.length > appState.scoreboard.length) {
+            appState.scoreboard = backupScores;
+          }
+        }
+      } catch (errScore) {
+        console.warn("Gagal memuat cadangan riwayat skor:", errScore);
+      }
+
+      QUESTION_SECTIONS.forEach(sec => {
+        sectionRemainingSeconds[sec] = (appState.sectionTimers[sec] || 15) * 60;
+      });
+    }
+
+    function showToast(msg) {
+      const box = document.getElementById("toast-box");
+      box.textContent = msg;
+      box.classList.remove("hidden");
+      clearTimeout(box._timeout);
+      box._timeout = setTimeout(() => {
+        box.classList.add("hidden");
+      }, 3000);
+    }
+
+    // Helper: Ambil daftar soal milik section tertentu
+    function getQuestionsBySection(secName) {
+      return appState.questions.filter(q => q.section === secName);
+    }
+
+    // ==================== TIMER LOGIC ====================
+    function startTimer() {
+      clearInterval(timerInterval);
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        if (!appState.isExamStarted || appState.activeSection === "Intro") return;
+        const sec = appState.activeSection;
+        if (sectionRemainingSeconds[sec] > 0) {
+          sectionRemainingSeconds[sec]--;
+          updateTimerDisplay();
+        } else {
+          clearInterval(timerInterval);
+          showToast(`⏰ Waktu untuk ${sec} telah habis!`);
+          handleFinishSectionClick();
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const el = document.getElementById("timer-display");
+      if (!appState.isExamStarted || appState.activeSection === "Intro") {
+        el.textContent = "--:--:--";
+        el.classList.remove("text-red-400");
+        return;
+      }
+      const secsTotal = sectionRemainingSeconds[appState.activeSection] ?? 0;
+      const hrs = Math.floor(secsTotal / 3600);
+      const mins = Math.floor((secsTotal % 3600) / 60);
+      const secs = secsTotal % 60;
+      const formatted =
+        String(hrs).padStart(2, "0") + ":" +
+        String(mins).padStart(2, "0") + ":" +
+        String(secs).padStart(2, "0");
+      el.textContent = formatted;
+      if (secsTotal <= 60) {
+        el.classList.add("text-red-400");
+      } else {
+        el.classList.remove("text-red-400");
+      }
+    }
+
+    // ==================== GERBANG INTRO & VALIDASI MULAI UJIAN ====================
+    function handleIntroCandidateInput() {
+      const nameInput = document.getElementById("intro-candidate-name");
+      const idInput = document.getElementById("intro-candidate-id");
+      const errorEl = document.getElementById("intro-name-error");
+      const footerStatus = document.getElementById("intro-footer-status");
+
+      appState.candidateName = nameInput ? nameInput.value : "";
+      appState.candidateId = idInput ? idInput.value : "";
+
+      if (appState.candidateName.trim() !== "") {
+        if (errorEl) errorEl.classList.add("hidden");
+        if (nameInput) nameInput.classList.remove("border-red-500", "ring-2", "ring-red-200");
+        if (footerStatus) {
+          footerStatus.textContent = `✅ Peserta: ${appState.candidateName.trim()} — Klik Start Test untuk membuka soal.`;
+          footerStatus.className = "text-xs sm:text-sm text-[#4e7525] font-semibold";
+        }
+      } else if (footerStatus) {
+        footerStatus.textContent = "⚠️ Isi Nama Lengkap Peserta terlebih dahulu untuk mengaktifkan tombol Start.";
+        footerStatus.className = "text-xs sm:text-sm text-amber-700 font-medium";
+      }
+
+      syncHeaderUI(false);
+      saveToStorage();
+    }
+
+    function startExamFromIntro() {
+      try {
+        const nameInput = document.getElementById("intro-candidate-name");
+        const errorEl = document.getElementById("intro-name-error");
+        const trimmedName = (nameInput ? nameInput.value : appState.candidateName || "").trim();
+
+        if (!trimmedName) {
+          if (errorEl) errorEl.classList.remove("hidden");
+          if (nameInput) {
+            nameInput.classList.add("border-red-500", "ring-2", "ring-red-200");
+            nameInput.focus();
+          }
+          showToast("⚠️ Harap isi Nama Lengkap Peserta terlebih dahulu sebelum memulai ujian!");
+          return;
+        }
+
+        appState.candidateName = trimmedName;
+        const idInput = document.getElementById("intro-candidate-id");
+        if (idInput) {
+          appState.candidateId = idInput.value.trim();
+        }
+        if (!Array.isArray(appState.questions) || appState.questions.length === 0) {
+          appState.questions = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
+        }
+        if (!appState.userAnswers || typeof appState.userAnswers !== "object") {
+          appState.userAnswers = {};
+        }
+        appState.isExamStarted = true;
+
+        const targetSection = QUESTION_SECTIONS.find(sec => getQuestionsBySection(sec).length > 0)
+          || appState.questions[0].section
+          || "Script and Vocabulary";
+        const secQs = getQuestionsBySection(targetSection);
+        appState.activeSection = targetSection;
+        appState.currentQuestionId = secQs.length > 0 ? secQs[0].id : appState.questions[0].id;
+
+        syncHeaderUI(false);
+        saveToStorage();
+        renderAllCBT();
+        updateTimerDisplay();
+        showToast(`🚀 Selamat mengerjakan, ${appState.candidateName}! Semua section telah dibuka.`);
+      } catch (err) {
+        console.error("Gagal memulai ujian:", err);
+        showToast("⚠️ Terjadi kendala saat memulai ujian.");
+      }
+    }
+
+    // ==================== NAVIGASI SECTION & SOAL (TERKUNCI SEBELUM START) ====================
+    function switchSection(sectionName) {
+      if (!appState.isExamStarted && sectionName !== "Intro") {
+        showToast("🔒 Isi Nama Peserta dan tekan tombol 'Start Test' di halaman Intro terlebih dahulu!");
+        const nameInput = document.getElementById("intro-candidate-name");
+        if (nameInput) nameInput.focus();
+        return;
+      }
+
+      if (!Array.isArray(appState.questions) || appState.questions.length === 0) {
+        appState.questions = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
+      }
+
+      let resolvedSection = sectionName;
+      if (resolvedSection !== "Intro") {
+        const secQuestions = getQuestionsBySection(resolvedSection);
+        if (secQuestions.length > 0) {
+          const alreadyInSec = secQuestions.some(q => q.id === appState.currentQuestionId);
+          if (!alreadyInSec) {
+            appState.currentQuestionId = secQuestions[0].id;
+          }
+        } else {
+          const firstAvailableSec = QUESTION_SECTIONS.find(sec => getQuestionsBySection(sec).length > 0);
+          if (firstAvailableSec) {
+            resolvedSection = firstAvailableSec;
+            const fallbackQs = getQuestionsBySection(firstAvailableSec);
+            appState.currentQuestionId = fallbackQs[0].id;
+            showToast(`ℹ️ Section "${sectionName}" belum memiliki soal, dialihkan ke "${firstAvailableSec}".`);
+          } else {
+            appState.currentQuestionId = appState.questions[0].id;
+          }
+        }
+      }
+
+      appState.activeSection = resolvedSection;
+
+      renderAllCBT();
+      updateTimerDisplay();
+    }
+
+    function renderAllCBT() {
+      const introPanel = document.getElementById("intro-section-panel");
+      const questionPanel = document.getElementById("question-section-panel");
+      const finishBtn = document.getElementById("btn-finish-section");
+      const headerQLabel = document.getElementById("header-q-label");
+      const headerQNum = document.getElementById("header-q-num");
+      const headerSectionName = document.getElementById("header-section-name");
+
+      if (!Array.isArray(appState.questions) || appState.questions.length === 0) {
+        appState.questions = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
+      }
+
+      // Jika sedang berada di section soal dan currentQuestionId belum valid/kosong, arahkan ke soal pertama yang tersedia
+      if (appState.activeSection !== "Intro") {
+        const secQuestions = getQuestionsBySection(appState.activeSection);
+        if (secQuestions.length > 0) {
+          const existsInSec = secQuestions.some(q => q.id === appState.currentQuestionId);
+          if (!existsInSec) {
+            appState.currentQuestionId = secQuestions[0].id;
+          }
+        } else {
+          const fallbackSec = QUESTION_SECTIONS.find(sec => getQuestionsBySection(sec).length > 0);
+          if (fallbackSec) {
+            const fallbackQs = getQuestionsBySection(fallbackSec);
+            appState.activeSection = fallbackSec;
+            appState.currentQuestionId = fallbackQs[0].id;
+          } else {
+            const fallbackQ = appState.questions[0];
+            appState.activeSection = fallbackQ.section || "Script and Vocabulary";
+            appState.currentQuestionId = fallbackQ.id;
+          }
+        }
+      }
+
+      renderSectionRail();
+      renderQuestionNav();
+
+      if (appState.activeSection === "Intro") {
+        if (introPanel) introPanel.classList.remove("hidden");
+        if (questionPanel) questionPanel.classList.add("hidden");
+        if (headerQLabel) headerQLabel.textContent = "Guide:";
+        if (headerQNum) headerQNum.textContent = "Intro";
+        if (headerSectionName) headerSectionName.textContent = "Introduction & Candidate Info";
+
+        const lockBadge = document.getElementById("intro-lock-badge");
+        const sectionsHint = document.getElementById("intro-sections-hint");
+        const startBtn = document.getElementById("btn-intro-start");
+        if (finishBtn) {
+          finishBtn.textContent = appState.isExamStarted ? "Lanjut ke Soal" : "Start Test";
+        }
+        if (appState.isExamStarted) {
+          if (lockBadge) {
+            lockBadge.textContent = "🔓 Ujian Aktif (Section Terbuka)";
+            lockBadge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300";
+          }
+          if (sectionsHint) {
+            sectionsHint.innerHTML = "Ujian sedang berlangsung. Anda dapat mengklik section mana pun di menu kiri atau kartu bagian di bawah ini:";
+          }
+          if (startBtn) {
+            startBtn.innerHTML = `<span>Lanjutkan Mengerjakan Ujian</span><span>▶</span>`;
+          }
+        } else {
+          if (lockBadge) {
+            lockBadge.textContent = "🔒 Navigasi Section Terkunci";
+            lockBadge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300";
+          }
+          if (sectionsHint) {
+            sectionsHint.innerHTML = "Seluruh bagian ujian di bawah ini dan menu kiri masih terkunci. Isi <strong>Nama Lengkap Peserta</strong> lalu klik tombol <strong>Start Test / Mulai Ujian</strong> untuk membuka akses dan memulai timer.";
+          }
+          if (startBtn) {
+            startBtn.innerHTML = `<span>Start Test / Mulai Ujian</span><span>▶</span>`;
+          }
+        }
+
+        renderIntroCards();
+      } else {
+        if (introPanel) introPanel.classList.add("hidden");
+        if (questionPanel) questionPanel.classList.remove("hidden");
+        if (finishBtn) finishBtn.textContent = "Finish Section";
+        renderCurrentQuestion();
+      }
+    }
+
+    function renderSectionRail() {
+      SECTION_ORDER.forEach(sec => {
+        const btn = document.getElementById(`rail-btn-${sec}`);
+        if (!btn) return;
+
+        if (sec === appState.activeSection) {
+          btn.classList.add("active-section");
+        } else {
+          btn.classList.remove("active-section");
+        }
+
+        const lockIcon = btn.querySelector(".lock-icon");
+        if (sec !== "Intro") {
+          if (!appState.isExamStarted) {
+            btn.classList.add("locked-section");
+            btn.setAttribute("aria-disabled", "true");
+            if (lockIcon) lockIcon.classList.remove("hidden");
+          } else {
+            btn.classList.remove("locked-section");
+            btn.removeAttribute("aria-disabled");
+            if (lockIcon) lockIcon.classList.add("hidden");
+          }
+
+          const secQs = getQuestionsBySection(sec);
+          const bar = document.getElementById(`strip-progress-${sec}`);
+          if (bar) {
+            if (secQs.length === 0) {
+              bar.style.height = "0%";
+            } else {
+              const answeredInSec = secQs.filter(q => appState.userAnswers[q.id] !== undefined).length;
+              const pct = Math.round((answeredInSec / secQs.length) * 100);
+              bar.style.height = `${pct}%`;
+            }
+          }
+        }
+      });
+    }
+
+    function renderIntroCards() {
+      const container = document.getElementById("intro-sections-cards");
+      if (!container) return;
+      container.innerHTML = "";
+
+      QUESTION_SECTIONS.forEach((sec, idx) => {
+        const qs = getQuestionsBySection(sec);
+        const answered = qs.filter(q => appState.userAnswers[q.id] !== undefined).length;
+        const card = document.createElement("button");
+        card.type = "button";
+        card.onclick = () => switchSection(sec);
+
+        if (!appState.isExamStarted) {
+          card.className = "text-left p-3 rounded-lg border border-slate-200 bg-slate-100/80 opacity-65 cursor-not-allowed flex items-center justify-between";
+        } else {
+          card.className = "text-left p-3 rounded-lg border border-slate-300 bg-white hover:border-[#567c2b] hover:bg-emerald-50/40 transition flex items-center justify-between cursor-pointer";
+        }
+
+        card.innerHTML = `
+          <div>
+            <div class="text-xs font-bold text-[#567c2b] flex items-center gap-1">
+              <span>${appState.isExamStarted ? "" : "🔒"} Part ${idx + 1}</span>
+            </div>
+            <div class="font-bold text-sm text-gray-900">${sec}</div>
+            <div class="text-xs text-gray-500 mt-0.5">${qs.length} Soal • Durasi ${appState.sectionTimers[sec] || 15} Menit</div>
+          </div>
+          <div class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-700 border border-slate-200">
+            ${answered}/${qs.length}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderQuestionNav() {
+      const container = document.getElementById("question-nav-list");
+      container.innerHTML = "";
+
+      if (appState.activeSection === "Intro") {
+        const badge = document.createElement("div");
+        badge.className = "w-full text-center py-2 px-1 rounded bg-[#567c2b] text-white text-xs font-bold active-q-arrow";
+        badge.textContent = "Intro";
+        container.appendChild(badge);
+        return;
+      }
+
+      const secQuestions = getQuestionsBySection(appState.activeSection);
+
+      if (secQuestions.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "text-[11px] text-gray-400 text-center px-1 py-4";
+        empty.textContent = "Belum ada soal di section ini.";
+        container.appendChild(empty);
+        return;
+      }
+
+      secQuestions.forEach((q, idx) => {
+        const isAnswered = appState.userAnswers[q.id] !== undefined;
+        const isActive = q.id === appState.currentQuestionId;
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.onclick = () => selectQuestionById(q.id);
+
+        const bgClass = isAnswered || isActive ? "bg-[#4e7525] text-white" : "bg-[#a6a6a6] hover:bg-[#8e8e8e] text-white";
+        const arrowClass = isActive ? "active-q-arrow" : "";
+
+        btn.className = `w-14 sm:w-16 h-8 rounded-[4px] font-semibold text-sm flex items-center justify-center transition cursor-pointer shrink-0 ${bgClass} ${arrowClass}`;
+        btn.textContent = idx + 1;
+        container.appendChild(btn);
+      });
+
+      const secAnswered = secQuestions.filter(q => appState.userAnswers[q.id] !== undefined).length;
+      document.getElementById("section-answered-counter").textContent = secAnswered;
+      document.getElementById("section-total-counter").textContent = secQuestions.length;
+
+      const totalAnswered = appState.questions.filter(q => appState.userAnswers[q.id] !== undefined).length;
+      document.getElementById("answered-counter").textContent = totalAnswered;
+      document.getElementById("total-counter").textContent = appState.questions.length;
+    }
+
+    function renderCurrentQuestion() {
+      const secQuestions = getQuestionsBySection(appState.activeSection);
+      const headerQLabel = document.getElementById("header-q-label");
+      const headerQNum = document.getElementById("header-q-num");
+      const headerSectionName = document.getElementById("header-section-name");
+      const instEl = document.getElementById("question-instruction");
+      const passageBox = document.getElementById("question-passage-box");
+      const imageBox = document.getElementById("question-image-box");
+      const imageEl = document.getElementById("question-image-preview");
+      const audioBox = document.getElementById("question-audio-box");
+      const audioPlayer = document.getElementById("question-audio-player");
+      const ytWrap = document.getElementById("question-youtube-wrap");
+      const ytPlayer = document.getElementById("question-youtube-player");
+      const promptEl = document.getElementById("question-prompt-jp");
+      const optionsContainer = document.getElementById("options-container");
+      const prevBtn = document.getElementById("btn-prev");
+      const nextBtn = document.getElementById("btn-next");
+
+      if (headerQLabel) headerQLabel.textContent = "Question:";
+      if (headerSectionName) headerSectionName.textContent = appState.activeSection;
+
+      if (secQuestions.length === 0) {
+        if (headerQNum) headerQNum.textContent = "-";
+        if (instEl) instEl.textContent = "Belum ada soal pada bagian ini.";
+        if (passageBox) passageBox.classList.add("hidden");
+        if (imageBox) imageBox.classList.add("hidden");
+        if (audioBox) audioBox.classList.add("hidden");
+        if (promptEl) {
+          promptEl.innerHTML =
+            `<span class="text-base text-gray-600">Klik tombol <strong>"✏️ Buat / Edit Soal"</strong> di pojok kanan atas untuk menambahkan soal ke section <strong>${appState.activeSection}</strong>.</span>`;
+        }
+        if (optionsContainer) optionsContainer.innerHTML = "";
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        return;
+      }
+
+      let localIdx = secQuestions.findIndex(q => q.id === appState.currentQuestionId);
+      if (localIdx === -1) {
+        localIdx = 0;
+        appState.currentQuestionId = secQuestions[0].id;
+      }
+      const q = secQuestions[localIdx];
+
+      if (headerQNum) headerQNum.textContent = localIdx + 1;
+      if (instEl) instEl.textContent = q.instruction || "";
+
+      if (passageBox) {
+        if (q.passage && q.passage.trim() !== "") {
+          passageBox.innerHTML = q.passage;
+          passageBox.classList.remove("hidden");
+        } else {
+          passageBox.classList.add("hidden");
+        }
+      }
+
+      if (imageBox && imageEl) {
+        if (q.imageUrl && q.imageUrl.trim() !== "") {
+          imageEl.src = q.imageUrl.trim();
+          imageBox.classList.remove("hidden");
+        } else {
+          imageEl.src = "";
+          imageBox.classList.add("hidden");
+        }
+      }
+
+      if (audioBox && audioPlayer && ytWrap && ytPlayer) {
+        if (q.section === "Listening Comprehension" || (q.audioUrl && q.audioUrl.trim() !== "")) {
+          audioBox.classList.remove("hidden");
+          const rawAudio = (q.audioUrl || "").trim();
+          const ytVideoId = extractYouTubeVideoId(rawAudio);
+
+          if (ytVideoId) {
+            audioPlayer.pause();
+            audioPlayer.removeAttribute("src");
+            audioPlayer.classList.add("hidden");
+            ytPlayer.src = `https://www.youtube.com/embed/${ytVideoId}?rel=0`;
+            ytWrap.classList.remove("hidden");
+          } else if (rawAudio !== "") {
+            ytPlayer.src = "";
+            ytWrap.classList.add("hidden");
+            audioPlayer.src = rawAudio;
+            audioPlayer.classList.remove("hidden");
+          } else {
+            audioPlayer.pause();
+            audioPlayer.removeAttribute("src");
+            audioPlayer.classList.add("hidden");
+            ytPlayer.src = "";
+            ytWrap.classList.add("hidden");
+          }
+        } else {
+          audioPlayer.pause();
+          audioPlayer.removeAttribute("src");
+          ytPlayer.src = "";
+          ytWrap.classList.add("hidden");
+          audioBox.classList.add("hidden");
+        }
+      }
+
+      if (promptEl) promptEl.innerHTML = q.prompt || "";
+
+      if (optionsContainer) {
+        optionsContainer.innerHTML = "";
+        const selectedOpt = appState.userAnswers ? appState.userAnswers[q.id] : undefined;
+        const opts = Array.isArray(q.options) && q.options.length > 0 ? q.options : ["", "", "", ""];
+
+        opts.forEach((optText, optIdx) => {
+          const isSelected = selectedOpt === optIdx;
+          const box = document.createElement("button");
+          box.type = "button";
+          box.onclick = () => chooseAnswer(q.id, optIdx);
+          box.className = `cbt-option-box w-full text-left px-3.5 py-2.5 flex items-center gap-3 cursor-pointer ${isSelected ? "selected" : ""}`;
+
+          box.innerHTML = `
+            <span class="jp-text text-xl sm:text-2xl text-black font-normal leading-snug">
+              ${optIdx + 1}. ${optText}
+            </span>
+          `;
+          optionsContainer.appendChild(box);
+        });
+      }
+
+      if (prevBtn) prevBtn.disabled = localIdx === 0;
+      if (nextBtn) nextBtn.disabled = localIdx === secQuestions.length - 1;
+    }
+
+    function selectQuestionById(qId) {
+      appState.currentQuestionId = qId;
+      renderQuestionNav();
+      renderCurrentQuestion();
+    }
+
+    function chooseAnswer(qId, optIdx) {
+      if (!appState.userAnswers || typeof appState.userAnswers !== "object") {
+        appState.userAnswers = {};
+      }
+      appState.userAnswers[qId] = optIdx;
+      renderSectionRail();
+      renderQuestionNav();
+      renderCurrentQuestion();
+    }
+
+    function prevQuestion() {
+      const secQuestions = getQuestionsBySection(appState.activeSection);
+      const localIdx = secQuestions.findIndex(q => q.id === appState.currentQuestionId);
+      if (localIdx > 0) {
+        selectQuestionById(secQuestions[localIdx - 1].id);
+      }
+    }
+
+    function nextQuestion() {
+      const secQuestions = getQuestionsBySection(appState.activeSection);
+      const localIdx = secQuestions.findIndex(q => q.id === appState.currentQuestionId);
+      if (localIdx >= 0 && localIdx < secQuestions.length - 1) {
+        selectQuestionById(secQuestions[localIdx + 1].id);
+      }
+    }
+
+    function speakJapanesePrompt() {
+      const secQuestions = getQuestionsBySection(appState.activeSection);
+      const q = secQuestions.find(item => item.id === appState.currentQuestionId);
+      if (!q) return;
+
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = q.prompt;
+        tempDiv.querySelectorAll("rt").forEach(rt => rt.remove());
+        const cleanText = tempDiv.textContent || "";
+
+        const utter = new SpeechSynthesisUtterance(cleanText);
+        utter.lang = "ja-JP";
+        utter.rate = 0.92;
+        window.speechSynthesis.speak(utter);
+        showToast("🔊 Memutar suara teks Jepang...");
+      } else {
+        showToast("⚠️ Browser Anda tidak mendukung fitur Text-to-Speech.");
+      }
+    }
+
+    // ==================== FINISH SECTION & EVALUASI ====================
+    function handleFinishSectionClick() {
+      if (appState.activeSection === "Intro") {
+        if (appState.isExamStarted) {
+          switchSection("Script and Vocabulary");
+        } else {
+          startExamFromIntro();
+        }
+        return;
+      }
+
+      if (!appState.isExamStarted) {
+        showToast("🔒 Silakan isi nama peserta dan tekan Start Test di halaman Intro terlebih dahulu.");
+        switchSection("Intro");
+        return;
+      }
+
+      const currentSecIdx = SECTION_ORDER.indexOf(appState.activeSection);
+      if (currentSecIdx >= 0 && currentSecIdx < SECTION_ORDER.length - 1) {
+        const nextSec = SECTION_ORDER[currentSecIdx + 1];
+        showToast(`✅ Bagian "${appState.activeSection}" selesai. Lanjut ke "${nextSec}".`);
+        switchSection(nextSec);
+      } else {
+        openFinishModal();
+      }
+    }
+
+    // ==================== MODAL TERJEMAHAN (YOUR LANGUAGE 1 & 2) ====================
+    function openTranslationModal(langNum) {
+      const secQuestions = getQuestionsBySection(appState.activeSection);
+      const q = secQuestions.find(item => item.id === appState.currentQuestionId);
+      if (!q) return;
+
+      const titleEl = document.getElementById("trans-modal-title");
+      const instEl = document.getElementById("trans-modal-instruction");
+      const textEl = document.getElementById("trans-modal-text");
+
+      if (langNum === 1) {
+        titleEl.textContent = "Your Language 1 (Bahasa Indonesia)";
+        instEl.textContent = "Bacalah soal berikut dengan saksama dan pilih jawaban yang paling tepat.";
+        textEl.textContent = q.trans1 || "(Terjemahan Bahasa Indonesia belum diisi untuk soal ini)";
+      } else {
+        titleEl.textContent = "Your Language 2 (English)";
+        instEl.textContent = q.instruction;
+        textEl.textContent = q.trans2 || "(English translation has not been provided for this question)";
+      }
+
+      document.getElementById("translation-modal").classList.remove("hidden");
+    }
+
+    function closeTranslationModal() {
+      document.getElementById("translation-modal").classList.add("hidden");
+    }
+
+    // ==================== MODAL FINISH SECTION & SKOR ====================
+    function openFinishModal() {
+      const total = appState.questions.length;
+      let correctCount = 0;
+
+      document.getElementById("res-candidate-name").textContent = appState.candidateName.trim() || "Peserta";
+      const idWrap = document.getElementById("res-candidate-id-wrap");
+      if (appState.candidateId && appState.candidateId.trim() !== "") {
+        document.getElementById("res-candidate-id").textContent = appState.candidateId.trim();
+        idWrap.classList.remove("hidden");
+      } else {
+        idWrap.classList.add("hidden");
+      }
+
+      const reviewList = document.getElementById("res-review-list");
+      reviewList.innerHTML = "";
+
+      QUESTION_SECTIONS.forEach(secName => {
+        const secQs = getQuestionsBySection(secName);
+        secQs.forEach((q, localIdx) => {
+          const userAnsIdx = appState.userAnswers[q.id];
+          const isCorrect = userAnsIdx === q.correctIndex;
+          if (isCorrect) correctCount++;
+
+          const userAnsText = userAnsIdx !== undefined ? `${userAnsIdx + 1}. ${q.options[userAnsIdx]}` : "Tidak dijawab";
+          const correctAnsText = `${q.correctIndex + 1}. ${q.options[q.correctIndex]}`;
+
+          const card = document.createElement("div");
+          card.className = `p-3.5 rounded-lg border ${isCorrect ? "bg-emerald-50/70 border-emerald-300" : "bg-red-50/70 border-red-300"}`;
+          card.innerHTML = `
+            <div class="flex items-center justify-between gap-2 mb-1">
+              <span class="font-bold text-xs px-2 py-0.5 rounded ${isCorrect ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}">
+                ${secName} #${localIdx + 1} — ${isCorrect ? "BENAR" : "SALAH"}
+              </span>
+            </div>
+            <div class="jp-text font-medium text-base text-gray-900 my-1.5 whitespace-pre-line">${q.prompt}</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs mt-2">
+              <div class="bg-white/80 p-2 rounded border border-gray-200">
+                <span class="text-gray-500">Jawaban Anda:</span>
+                <span class="jp-text font-bold ${isCorrect ? "text-emerald-700" : "text-red-700"} block mt-0.5">${userAnsText}</span>
+              </div>
+              <div class="bg-white/80 p-2 rounded border border-gray-200">
+                <span class="text-gray-500">Kunci Jawaban:</span>
+                <span class="jp-text font-bold text-emerald-700 block mt-0.5">${correctAnsText}</span>
+              </div>
+            </div>
+            ${q.explanation ? `<div class="mt-2 text-xs text-gray-700 bg-white/70 p-2 rounded border border-gray-200"><strong>Pembahasan:</strong> ${q.explanation}</div>` : ""}
+          `;
+          reviewList.appendChild(card);
+        });
+      });
+
+      const pct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+      const earnedPoints = total > 0 ? Math.round((correctCount / total) * MAX_EXAM_POINTS) : 0;
+      const isPassed = earnedPoints >= PASSING_EXAM_POINTS;
+      document.getElementById("res-points-score").textContent = `${earnedPoints} / ${MAX_EXAM_POINTS}`;
+      document.getElementById("res-correct-count").textContent = `Benar: ${correctCount} / ${total} soal`;
+      document.getElementById("res-percentage").textContent = `${pct}%`;
+
+      const statusEl = document.getElementById("res-status");
+      if (isPassed) {
+        statusEl.textContent = "LULUS (≥200 Poin)";
+        statusEl.className = "text-lg font-bold text-emerald-700 mt-1.5";
+      } else {
+        statusEl.textContent = "BELUM LULUS (<200 Poin)";
+        statusEl.className = "text-lg font-bold text-red-600 mt-1.5";
+      }
+
+      recordScoreToBoard(
+        appState.candidateName.trim() || "Peserta",
+        appState.candidateId.trim() || "-",
+        correctCount,
+        total,
+        earnedPoints,
+        pct,
+        isPassed
+      );
+      renderScoreboard();
+
+      document.getElementById("finish-modal").classList.remove("hidden");
+    }
+
+    function recordScoreToBoard(name, id, correct, total, points, pct, isPassed) {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      });
+      const timeStr = now.toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+      const timestampLabel = `${dateStr}, ${timeStr}`;
+
+      appState.scoreboard.unshift({
+        name,
+        id,
+        correct,
+        total,
+        points,
+        maxPoints: MAX_EXAM_POINTS,
+        pct,
+        passed: isPassed,
+        date: dateStr,
+        time: timeStr,
+        timestampLabel
+      });
+      if (appState.scoreboard.length > 30) {
+        appState.scoreboard = appState.scoreboard.slice(0, 30);
+      }
+      saveToStorage();
+    }
+
+    function renderScoreboard() {
+      const tbody = document.getElementById("scoreboard-tbody");
+      const headerTbody = document.getElementById("header-scoreboard-tbody");
+      const targets = [tbody, headerTbody].filter(Boolean);
+      if (targets.length === 0) return;
+
+      targets.forEach(el => {
+        el.innerHTML = "";
+      });
+
+      const list = Array.isArray(appState.scoreboard) ? appState.scoreboard : [];
+
+      if (list.length === 0) {
+        const emptyRow = `<tr><td colspan="7" class="py-4 px-3 text-center text-gray-500">Belum ada catatan skor peserta (Maksimal 250 poin, minimal lulus 200 poin). Selesaikan ujian untuk mencatat skor beserta tanggal dan jam.</td></tr>`;
+        targets.forEach(el => {
+          el.innerHTML = emptyRow;
+        });
+        return;
+      }
+
+      list.forEach((entry, idx) => {
+        const dateTimeDisplay = entry.timestampLabel || (entry.date ? `${entry.date}, ${entry.time || ""}` : (entry.time || "-"));
+        const safeName = String(entry.name || "Peserta").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safeId = String(entry.id || "-").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const computedPoints = typeof entry.points === "number"
+          ? entry.points
+          : (entry.total > 0 ? Math.round((entry.correct / entry.total) * MAX_EXAM_POINTS) : 0);
+        const passedByPoints = typeof entry.passed === "boolean" ? entry.passed : (computedPoints >= PASSING_EXAM_POINTS);
+        const rowHtml = `
+          <td class="py-2 px-3 font-bold text-gray-700">${idx + 1}</td>
+          <td class="py-2 px-3 font-bold text-gray-900">${safeName}</td>
+          <td class="py-2 px-3 text-gray-600">${safeId}</td>
+          <td class="py-2 px-3 text-center font-semibold">${entry.correct}/${entry.total}</td>
+          <td class="py-2 px-3 text-center font-bold text-blue-700">${computedPoints} / ${MAX_EXAM_POINTS}</td>
+          <td class="py-2 px-3 text-center">
+            <span class="px-2 py-0.5 rounded text-[11px] font-bold ${passedByPoints ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"}">
+              ${passedByPoints ? "LULUS" : "BELUM"}
+            </span>
+          </td>
+          <td class="py-2 px-3 text-xs text-gray-600 whitespace-nowrap">${dateTimeDisplay}</td>
+        `;
+
+        targets.forEach(el => {
+          const tr = document.createElement("tr");
+          tr.className = idx === 0 ? "bg-emerald-50/70 font-medium" : "hover:bg-gray-50";
+          tr.innerHTML = rowHtml;
+          el.appendChild(tr);
+        });
+      });
+    }
+
+    function openScoreboardModal() {
+      const modal = document.getElementById("scoreboard-modal");
+      if (!modal) return;
+      // Pindahkan modal ke akhir <body> agar tidak terhalang container ber-overflow/z-index di atasnya
+      if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+      }
+      loadFromStorage();
+      renderScoreboard();
+      modal.classList.remove("hidden");
+      modal.style.setProperty("position", "fixed", "important");
+      modal.style.setProperty("inset", "0", "important");
+      modal.style.setProperty("z-index", "99999", "important");
+      modal.style.setProperty("display", "flex", "important");
+    }
+
+    function closeScoreboardModal() {
+      const modal = document.getElementById("scoreboard-modal");
+      if (!modal) return;
+      modal.classList.add("hidden");
+      modal.style.setProperty("display", "none", "important");
+    }
+
+    function clearScoreboard() {
+      appState.scoreboard = [];
+      try {
+        localStorage.removeItem(`${STORAGE_KEY}_scoreboard`);
+      } catch (e) {}
+      saveToStorage();
+      renderScoreboard();
+      showToast("🗑️ Riwayat papan pengumuman skor dihapus.");
+    }
+
+    function closeFinishModal() {
+      document.getElementById("finish-modal").classList.add("hidden");
+    }
+
+    function restartExam() {
+      appState.userAnswers = {};
+      appState.candidateName = "";
+      appState.candidateId = "";
+      appState.isExamStarted = false;
+      appState.activeSection = "Intro";
+      const firstQs = getQuestionsBySection("Script and Vocabulary");
+      appState.currentQuestionId = firstQs.length > 0 ? firstQs[0].id : null;
+      QUESTION_SECTIONS.forEach(sec => {
+        sectionRemainingSeconds[sec] = (appState.sectionTimers[sec] || 15) * 60;
+      });
+      saveToStorage();
+      syncHeaderUI(true);
+      handleIntroCandidateInput();
+      closeFinishModal();
+      if (isEditorMode) {
+        toggleMode();
+      } else {
+        renderAllCBT();
+      }
+      startTimer();
+      showToast("🔄 Sesi ujian, nama, dan nomor peserta direset. Silakan isi data peserta baru di halaman Intro.");
+    }
+
+    // ==================== EDIT NAMA KANDIDAT CEPAT ====================
+    function promptEditCandidate() {
+      document.getElementById("quick-candidate-input").value = appState.candidateName;
+      document.getElementById("candidate-modal").classList.remove("hidden");
+    }
+
+    function closeCandidateModal() {
+      document.getElementById("candidate-modal").classList.add("hidden");
+    }
+
+    function saveQuickCandidate() {
+      const val = document.getElementById("quick-candidate-input").value.trim();
+      if (val) {
+        appState.candidateName = val;
+        syncHeaderUI();
+        saveToStorage();
+        if (appState.activeSection === "Intro") {
+          handleIntroCandidateInput();
+        }
+        showToast("✅ Nama kandidat diperbarui.");
+      }
+      closeCandidateModal();
+    }
+
+    // ==================== MODE PEMBUAT / EDITOR SOAL ====================
+    function syncHeaderUI(syncIntroInputs = true) {
+      document.getElementById("subheader-test-title").textContent = appState.testTitle;
+      const displayCandidate = appState.candidateName.trim()
+        ? (appState.candidateId.trim() ? `${appState.candidateName.trim()} (${appState.candidateId.trim()})` : appState.candidateName.trim())
+        : "(Belum Diisi)";
+      document.getElementById("subheader-candidate-name").textContent = displayCandidate;
+
+      if (syncIntroInputs) {
+        const introName = document.getElementById("intro-candidate-name");
+        const introId = document.getElementById("intro-candidate-id");
+        if (introName) introName.value = appState.candidateName;
+        if (introId) introId.value = appState.candidateId;
+      }
+
+      document.getElementById("cfg-test-title").value = appState.testTitle;
+      document.getElementById("cfg-candidate-name").value = appState.candidateName;
+      document.getElementById("cfg-admin-pin").value = appState.adminPin || "admin123";
+      document.getElementById("cfg-timer-script").value = appState.sectionTimers["Script and Vocabulary"] || 15;
+      document.getElementById("cfg-timer-conv").value = appState.sectionTimers["Conversation and Expression"] || 15;
+      document.getElementById("cfg-timer-list").value = appState.sectionTimers["Listening Comprehension"] || 15;
+      document.getElementById("cfg-timer-read").value = appState.sectionTimers["Reading Comprehension"] || 15;
+    }
+
+    function openAdminLoginModal() {
+      const modal = document.getElementById("admin-login-modal");
+      const pinInput = document.getElementById("admin-pin-input");
+      if (!modal) return;
+      if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+      }
+      if (pinInput) pinInput.value = "";
+      modal.classList.remove("hidden");
+      modal.style.setProperty("position", "fixed", "important");
+      modal.style.setProperty("inset", "0", "important");
+      modal.style.setProperty("z-index", "99999", "important");
+      modal.style.setProperty("display", "flex", "important");
+      setTimeout(() => {
+        if (pinInput) pinInput.focus();
+      }, 50);
+    }
+
+    function closeAdminLoginModal() {
+      const modal = document.getElementById("admin-login-modal");
+      const pinInput = document.getElementById("admin-pin-input");
+      if (pinInput) pinInput.value = "";
+      if (!modal) return;
+      modal.classList.add("hidden");
+      modal.style.setProperty("display", "none", "important");
+      modal.style.setProperty("visibility", "hidden", "important");
+      modal.style.setProperty("opacity", "0", "important");
+    }
+
+    function openAdminLoginModal() {
+      const modal = document.getElementById("admin-login-modal");
+      const pinInput = document.getElementById("admin-pin-input");
+      if (!modal) return;
+      if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+      }
+      if (pinInput) pinInput.value = "";
+      modal.classList.remove("hidden");
+      modal.style.setProperty("position", "fixed", "important");
+      modal.style.setProperty("inset", "0", "important");
+      modal.style.setProperty("z-index", "99999", "important");
+      modal.style.setProperty("visibility", "visible", "important");
+      modal.style.setProperty("opacity", "1", "important");
+      modal.style.setProperty("display", "flex", "important");
+      setTimeout(() => {
+        if (pinInput) pinInput.focus();
+      }, 50);
+    }
+
+    function submitAdminLogin(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      const pinInput = document.getElementById("admin-pin-input");
+      const enteredPin = (pinInput ? pinInput.value : "").trim();
+      const expectedPin = (appState.adminPin || "admin123").trim();
+
+      if (enteredPin === expectedPin) {
+        isAdminAuthenticated = true;
+        closeAdminLoginModal();
+        if (!isEditorMode) {
+          toggleMode();
+        }
+        showToast("🔐 Login Admin berhasil. Mode Buat / Edit Soal dibuka.");
+      } else {
+        showToast("❌ PIN Admin salah! Silakan coba lagi.");
+        if (pinInput) {
+          pinInput.select();
+          pinInput.focus();
+        }
+      }
+    }
+
+    function logoutAdminMode() {
+      isAdminAuthenticated = false;
+      if (isEditorMode) {
+        toggleMode();
+      }
+      showToast("🔒 Sesi admin telah dikunci kembali.");
+    }
+
+    function toggleMode() {
+      if (!isEditorMode && !isAdminAuthenticated) {
+        openAdminLoginModal();
+        return;
+      }
+
+      isEditorMode = !isEditorMode;
+      const examView = document.getElementById("cbt-exam-view");
+      const editorView = document.getElementById("editor-view");
+      const btnText = document.getElementById("btn-toggle-editor-text");
+      const btnIcon = document.getElementById("btn-toggle-editor-icon");
+      const btnToggle = document.getElementById("btn-toggle-editor");
+
+      try {
+        if (isEditorMode) {
+          if (examView) examView.classList.add("hidden");
+          if (editorView) editorView.classList.remove("hidden");
+          if (btnText) btnText.textContent = "Kembali ke Layar Ujian";
+          if (btnIcon) btnIcon.textContent = "✏️";
+          if (btnToggle) {
+            btnToggle.classList.remove("bg-emerald-600", "hover:bg-emerald-500");
+            btnToggle.classList.add("bg-blue-600", "hover:bg-blue-500");
+          }
+          if (appState.activeSection !== "Intro") {
+            const fSec = document.getElementById("f-section");
+            if (fSec) fSec.value = appState.activeSection;
+          }
+          renderEditorQuestionList();
+        } else {
+          // Pastikan semua modal/overlay yang mungkin terbuka tertutup rapi saat kembali ke halaman ujian
+          closeAdminLoginModal();
+          closeScoreboardModal();
+          closeTranslationModal();
+
+          // Kembalikan ke tampilan awal (Intro / Start Ujian) setelah keluar dari mode editor soal
+          appState.isExamStarted = false;
+          appState.activeSection = "Intro";
+          const firstQs = getQuestionsBySection("Script and Vocabulary");
+          appState.currentQuestionId = firstQs.length > 0
+            ? firstQs[0].id
+            : (appState.questions.length > 0 ? appState.questions[0].id : null);
+          syncHeaderUI();
+
+          if (editorView) editorView.classList.add("hidden");
+          if (examView) {
+            examView.classList.remove("hidden");
+            examView.scrollTop = 0;
+          }
+          if (btnText) btnText.textContent = isAdminAuthenticated ? "Buat / Edit Soal" : "Buat / Edit Soal (Admin)";
+          if (btnIcon) btnIcon.textContent = isAdminAuthenticated ? "✏️" : "🔐";
+          if (btnToggle) {
+            btnToggle.classList.remove("bg-blue-600", "hover:bg-blue-500");
+            btnToggle.classList.add("bg-emerald-600", "hover:bg-emerald-500");
+          }
+          renderAllCBT();
+          updateTimerDisplay();
+        }
+      } catch (err) {
+        console.error("Gagal mengganti mode tampilan:", err);
+        showToast("⚠️ Terjadi kendala saat berpindah tampilan ujian.");
+      }
+    }
+
+    function updateConfig() {
+      appState.testTitle = document.getElementById("cfg-test-title").value || "Japan Foundation Test for Basic Japanese";
+      appState.candidateName = document.getElementById("cfg-candidate-name").value;
+      const pinField = document.getElementById("cfg-admin-pin");
+      if (pinField && pinField.value.trim() !== "") {
+        appState.adminPin = pinField.value.trim();
+      }
+
+      const tScript = parseInt(document.getElementById("cfg-timer-script").value, 10);
+      const tConv = parseInt(document.getElementById("cfg-timer-conv").value, 10);
+      const tList = parseInt(document.getElementById("cfg-timer-list").value, 10);
+      const tRead = parseInt(document.getElementById("cfg-timer-read").value, 10);
+
+      if (!isNaN(tScript) && tScript > 0) appState.sectionTimers["Script and Vocabulary"] = tScript;
+      if (!isNaN(tConv) && tConv > 0) appState.sectionTimers["Conversation and Expression"] = tConv;
+      if (!isNaN(tList) && tList > 0) appState.sectionTimers["Listening Comprehension"] = tList;
+      if (!isNaN(tRead) && tRead > 0) appState.sectionTimers["Reading Comprehension"] = tRead;
+
+      syncHeaderUI();
+      saveToStorage();
+    }
+
+    function resetTimerFromConfig() {
+      updateConfig();
+      QUESTION_SECTIONS.forEach(sec => {
+        sectionRemainingSeconds[sec] = (appState.sectionTimers[sec] || 15) * 60;
+      });
+      startTimer();
+      showToast("⏱️ Semua timer section berhasil diatur ulang!");
+    }
+
+    function insertBlankToken() {
+      const textarea = document.getElementById("f-prompt");
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const token = "（　　　）";
+      textarea.value = textarea.value.substring(0, start) + token + textarea.value.substring(end);
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + token.length;
+    }
+
+    function insertFuriganaTemplate() {
+      const textarea = document.getElementById("f-prompt");
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const token = "<ruby>漢字<rt>かんじ</rt></ruby>";
+      textarea.value = textarea.value.substring(0, start) + token + textarea.value.substring(end);
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + token.length;
+    }
+
+    function handleQuestionImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      processImageFileToField(file, "🖼️ Gambar dari file berhasil dimuat ke form soal.");
+      event.target.value = "";
+    }
+
+    function handleQuestionImagePaste(event) {
+      const clipboardData = event.clipboardData || window.clipboardData;
+      if (!clipboardData) return;
+
+      const items = Array.from(clipboardData.items || []);
+      const imageItem = items.find(item => item.type && item.type.startsWith("image/"));
+      if (imageItem) {
+        const blob = imageItem.getAsFile();
+        if (blob) {
+          event.preventDefault();
+          processImageFileToField(blob, "📋 Gambar hasil copas (paste) berhasil dimuat ke form soal!");
+        }
+      }
+    }
+
+    function processImageFileToField(file, successMessage) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const rawDataUrl = e.target.result;
+        compressImageDataUrl(rawDataUrl, 960, 0.82, (finalUrl) => {
+          document.getElementById("f-image").value = finalUrl;
+          previewEditorImage();
+          showToast(successMessage);
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function compressImageDataUrl(dataUrl, maxWidth, quality, callback) {
+      const img = new Image();
+      img.onload = () => {
+        let targetW = img.width;
+        let targetH = img.height;
+        if (targetW > maxWidth) {
+          targetH = Math.round((targetH * maxWidth) / targetW);
+          targetW = maxWidth;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+        const compressed = canvas.toDataURL("image/jpeg", quality);
+        callback(compressed.length < dataUrl.length ? compressed : dataUrl);
+      };
+      img.onerror = () => callback(dataUrl);
+      img.src = dataUrl;
+    }
+
+    function previewEditorImage() {
+      const input = document.getElementById("f-image");
+      const wrap = document.getElementById("f-image-preview-wrap");
+      const img = document.getElementById("f-image-preview");
+      if (!input || !wrap || !img) return;
+
+      const val = input.value.trim();
+      if (val) {
+        img.onerror = () => {
+          wrap.classList.remove("hidden");
+          let error = document.getElementById("f-image-preview-error");
+          if (!error) {
+            error = document.createElement("p");
+            error.id = "f-image-preview-error";
+            error.className = "text-xs text-red-600 mt-2";
+            error.textContent = "Gambar tidak dapat dimuat. Periksa URL atau pilih file gambar lain.";
+            wrap.appendChild(error);
+          }
+        };
+        img.onload = () => {
+          const error = document.getElementById("f-image-preview-error");
+          if (error) error.remove();
+        };
+        img.src = val;
+        wrap.classList.remove("hidden");
+      } else {
+        img.removeAttribute("src");
+        const error = document.getElementById("f-image-preview-error");
+        if (error) error.remove();
+        wrap.classList.add("hidden");
+      }
+    }
+
+    function clearQuestionImage() {
+      document.getElementById("f-image").value = "";
+      previewEditorImage();
+    }
+
+    // Ekstrak ID video YouTube dari berbagai format link YouTube
+    function extractYouTubeVideoId(url) {
+      if (!url) return "";
+      const trimmed = url.trim();
+      const patterns = [
+        /(?:youtube\.com\/watch\?.*v=|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/|youtu\.be\/)([A-Za-z0-9_-]{11})/,
+        /^([A-Za-z0-9_-]{11})$/
+      ];
+      for (const regex of patterns) {
+        const match = trimmed.match(regex);
+        if (match && match[1]) {
+          return match[1];
+        }
+      }
+      return "";
+    }
+
+    function handleQuestionAudioUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById("f-audio").value = e.target.result || "";
+        previewEditorAudio();
+        showToast("🎵 File audio berhasil dimuat ke form soal.");
+      };
+      reader.readAsDataURL(file);
+      event.target.value = "";
+    }
+
+    function previewEditorAudio() {
+      const rawVal = (document.getElementById("f-audio").value || "").trim();
+      const wrap = document.getElementById("f-audio-preview-wrap");
+      const label = document.getElementById("f-audio-preview-label");
+      const audioEl = document.getElementById("f-audio-preview-player");
+      const ytWrap = document.getElementById("f-youtube-preview-wrap");
+      const ytEl = document.getElementById("f-youtube-preview-player");
+
+      if (!rawVal) {
+        audioEl.pause();
+        audioEl.removeAttribute("src");
+        audioEl.classList.add("hidden");
+        ytEl.src = "";
+        ytWrap.classList.add("hidden");
+        wrap.classList.add("hidden");
+        return;
+      }
+
+      const ytId = extractYouTubeVideoId(rawVal);
+      wrap.classList.remove("hidden");
+
+      if (ytId) {
+        audioEl.pause();
+        audioEl.removeAttribute("src");
+        audioEl.classList.add("hidden");
+        label.textContent = "Pratinjau audio/video dari link YouTube:";
+        ytEl.src = `https://www.youtube.com/embed/${ytId}?rel=0`;
+        ytWrap.classList.remove("hidden");
+      } else {
+        ytEl.src = "";
+        ytWrap.classList.add("hidden");
+        label.textContent = rawVal.startsWith("data:audio")
+          ? "Pratinjau file audio yang diunggah:"
+          : "Pratinjau tautan file audio langsung:";
+        audioEl.src = rawVal;
+        audioEl.classList.remove("hidden");
+      }
+    }
+
+    function clearQuestionAudio() {
+      document.getElementById("f-audio").value = "";
+      previewEditorAudio();
+    }
+
+    function saveQuestionFromForm(e) {
+      e.preventDefault();
+      const editIdx = parseInt(document.getElementById("edit-q-index").value, 10);
+      const selectedRadio = document.querySelector('input[name="correctOption"]:checked');
+      const correctIndex = selectedRadio ? parseInt(selectedRadio.value, 10) : 0;
+
+      const existingQ = (editIdx >= 0 && editIdx < appState.questions.length) ? appState.questions[editIdx] : null;
+      const existingId = existingQ ? existingQ.id : Date.now();
+      const passageEl = document.getElementById("f-passage");
+      const imageEl = document.getElementById("f-image");
+      const audioEl = document.getElementById("f-audio");
+
+      const newQ = {
+        id: existingId,
+        section: document.getElementById("f-section").value,
+        instruction: document.getElementById("f-instruction").value.trim(),
+        passage: passageEl ? passageEl.value.trim() : (existingQ ? (existingQ.passage || "") : ""),
+        imageUrl: imageEl ? imageEl.value.trim() : (existingQ ? (existingQ.imageUrl || "") : ""),
+        audioUrl: audioEl ? audioEl.value.trim() : (existingQ ? (existingQ.audioUrl || "") : ""),
+        prompt: document.getElementById("f-prompt").value.trim(),
+        options: [
+          document.getElementById("f-opt-0").value.trim(),
+          document.getElementById("f-opt-1").value.trim(),
+          document.getElementById("f-opt-2").value.trim(),
+          document.getElementById("f-opt-3").value.trim()
+        ],
+        correctIndex: correctIndex,
+        trans1: document.getElementById("f-trans-1").value.trim(),
+        trans2: document.getElementById("f-trans-2").value.trim(),
+        explanation: document.getElementById("f-explanation").value.trim()
+      };
+
+      if (editIdx >= 0 && editIdx < appState.questions.length) {
+        appState.questions[editIdx] = newQ;
+        showToast(`✅ Soal berhasil diperbarui!`);
+      } else {
+        appState.questions.push(newQ);
+        showToast(`✅ Soal baru berhasil ditambahkan ke ${newQ.section}!`);
+      }
+
+      appState.activeSection = newQ.section;
+      appState.currentQuestionId = newQ.id;
+      appState.isExamStarted = false;
+
+      saveToStorage();
+      resetForm();
+      renderEditorQuestionList();
+      showToast(`💾 Soal tersimpan! Klik "Kembali ke Layar Ujian" untuk ke tampilan Start Ujian.`);
+    }
+
+    function editQuestionInForm(idx) {
+      try {
+        const q = appState.questions[idx];
+        if (!q) {
+          showToast("⚠️ Data soal tidak ditemukan untuk diedit.");
+          return;
+        }
+
+        const editIdxInput = document.getElementById("edit-q-index");
+        if (editIdxInput) editIdxInput.value = idx;
+
+        const formTitle = document.getElementById("form-editor-title");
+        if (formTitle) formTitle.textContent = `✏️ Edit Soal (${q.section})`;
+
+        const cancelBtn = document.getElementById("btn-cancel-edit");
+        if (cancelBtn) cancelBtn.classList.remove("hidden");
+
+        const secSelect = document.getElementById("f-section");
+        if (secSelect) secSelect.value = q.section || "Script and Vocabulary";
+
+        const instInput = document.getElementById("f-instruction");
+        if (instInput) instInput.value = q.instruction || "";
+
+        const passageInput = document.getElementById("f-passage");
+        if (passageInput) passageInput.value = q.passage || "";
+
+        const imageInput = document.getElementById("f-image");
+        if (imageInput) {
+          imageInput.value = q.imageUrl || "";
+          if (typeof previewEditorImage === "function") previewEditorImage();
+        }
+
+        const audioInput = document.getElementById("f-audio");
+        if (audioInput) {
+          audioInput.value = q.audioUrl || "";
+          if (typeof previewEditorAudio === "function") previewEditorAudio();
+        }
+
+        const promptInput = document.getElementById("f-prompt");
+        if (promptInput) promptInput.value = q.prompt || "";
+
+        for (let i = 0; i < 4; i++) {
+          const optInput = document.getElementById(`f-opt-${i}`);
+          if (optInput) optInput.value = (Array.isArray(q.options) && q.options[i]) ? q.options[i] : "";
+        }
+
+        const radios = document.querySelectorAll('input[name="correctOption"]');
+        const targetRadio = radios[q.correctIndex] || radios[0];
+        if (targetRadio) targetRadio.checked = true;
+
+        const trans1Input = document.getElementById("f-trans-1");
+        if (trans1Input) trans1Input.value = q.trans1 || "";
+
+        const trans2Input = document.getElementById("f-trans-2");
+        if (trans2Input) trans2Input.value = q.trans2 || "";
+
+        const expInput = document.getElementById("f-explanation");
+        if (expInput) expInput.value = q.explanation || "";
+
+        const formEl = document.getElementById("question-form");
+        if (formEl) formEl.scrollIntoView({ behavior: "smooth" });
+        showToast("✏️ Soal dimuat ke form edit.");
+      } catch (err) {
+        console.error("Gagal memuat soal untuk diedit:", err);
+        showToast("⚠️ Terjadi kendala saat membuka soal untuk diedit.");
+      }
+    }
+
+    function deleteQuestion(idx) {
+      if (appState.questions.length <= 1) {
+        showToast("⚠️ Minimal harus ada 1 soal di dalam ujian.");
+        return;
+      }
+      const removed = appState.questions.splice(idx, 1)[0];
+      delete appState.userAnswers[removed.id];
+      saveToStorage();
+      renderEditorQuestionList();
+      showToast(`🗑️ Soal dihapus.`);
+    }
+
+    function resetForm() {
+      const editIdxInput = document.getElementById("edit-q-index");
+      if (editIdxInput) editIdxInput.value = "-1";
+
+      const formTitle = document.getElementById("form-editor-title");
+      if (formTitle) formTitle.textContent = "➕ Tambah Soal Baru";
+
+      const cancelBtn = document.getElementById("btn-cancel-edit");
+      if (cancelBtn) cancelBtn.classList.add("hidden");
+
+      const passageInput = document.getElementById("f-passage");
+      if (passageInput) passageInput.value = "";
+
+      const imageInput = document.getElementById("f-image");
+      if (imageInput) {
+        imageInput.value = "";
+        if (typeof previewEditorImage === "function") previewEditorImage();
+      }
+
+      const audioInput = document.getElementById("f-audio");
+      if (audioInput) {
+        audioInput.value = "";
+        if (typeof previewEditorAudio === "function") previewEditorAudio();
+      }
+
+      const promptInput = document.getElementById("f-prompt");
+      if (promptInput) promptInput.value = "";
+
+      for (let i = 0; i < 4; i++) {
+        const optInput = document.getElementById(`f-opt-${i}`);
+        if (optInput) optInput.value = "";
+      }
+
+      const trans1Input = document.getElementById("f-trans-1");
+      if (trans1Input) trans1Input.value = "";
+
+      const trans2Input = document.getElementById("f-trans-2");
+      if (trans2Input) trans2Input.value = "";
+
+      const expInput = document.getElementById("f-explanation");
+      if (expInput) expInput.value = "";
+
+      const firstRadio = document.querySelector('input[name="correctOption"][value="0"]');
+      if (firstRadio) firstRadio.checked = true;
+    }
+
+    function restoreDefaultQuestions() {
+      appState.questions = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
+      appState.userAnswers = {};
+      appState.isExamStarted = false;
+      appState.activeSection = "Intro";
+      appState.currentQuestionId = 101;
+      saveToStorage();
+      renderEditorQuestionList();
+      showToast("🔄 Daftar soal dikembalikan ke soal contoh lengkap 4 section.");
+    }
+
+    function renderEditorQuestionList() {
+      const listEl = document.getElementById("editor-question-list");
+      const countEl = document.getElementById("editor-q-count");
+      const filterEl = document.getElementById("editor-filter-section");
+      if (!listEl) return;
+
+      const filterSec = filterEl ? filterEl.value : "ALL";
+      const filtered = appState.questions
+        .map((q, idx) => ({ q, idx }))
+        .filter(item => filterSec === "ALL" || item.q.section === filterSec);
+
+      if (countEl) countEl.textContent = filtered.length;
+      listEl.innerHTML = "";
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `<div class="text-xs text-slate-500 text-center py-8 border border-dashed border-slate-300 rounded-lg">Belum ada soal pada filter section ini.</div>`;
+        return;
+      }
+
+      filtered.forEach(({ q, idx }, displayIdx) => {
+        const card = document.createElement("div");
+        card.className = "p-3 rounded-lg border border-slate-200 bg-slate-50 hover:bg-white transition space-y-1.5";
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-[#567c2b]/15 text-[#3b571c]">#${displayIdx + 1} • ${q.section}</span>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="editQuestionInForm(${idx})" class="text-xs font-semibold text-blue-600 hover:underline cursor-pointer">Edit</button>
+              <button type="button" onclick="deleteQuestion(${idx})" class="text-xs font-semibold text-red-600 hover:underline cursor-pointer">Hapus</button>
+            </div>
+          </div>
+          <div class="jp-text text-sm font-medium text-slate-900 line-clamp-2">${q.prompt}</div>
+          <div class="text-[11px] text-emerald-700 font-medium">Jawaban benar: ${q.correctIndex + 1}. ${q.options[q.correctIndex] || ""}</div>
+        `;
+        listEl.appendChild(card);
+      });
+    }
+
+    // ==================== EKSPOR / IMPOR & UNDUH HTML MANDIRI ====================
+    function exportJSON() {
+      const payload = {
+        testTitle: appState.testTitle,
+        candidateName: appState.candidateName,
+        candidateId: appState.candidateId,
+        sectionTimers: appState.sectionTimers,
+        questions: appState.questions,
+        scoreboard: appState.scoreboard
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "soal-jft-basic.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("📤 File JSON soal berhasil diunduh!");
+    }
+
+    function importJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (Array.isArray(data.questions) && data.questions.length > 0) {
+            appState.questions = data.questions;
+            if (data.testTitle) appState.testTitle = data.testTitle;
+            if (typeof data.candidateName === "string") appState.candidateName = data.candidateName;
+            if (typeof data.candidateId === "string") appState.candidateId = data.candidateId;
+            if (data.sectionTimers) appState.sectionTimers = { ...appState.sectionTimers, ...data.sectionTimers };
+            appState.userAnswers = {};
+            appState.isExamStarted = false;
+            appState.activeSection = "Intro";
+            const firstQs = getQuestionsBySection("Script and Vocabulary");
+            appState.currentQuestionId = firstQs.length > 0 ? firstQs[0].id : appState.questions[0].id;
+            QUESTION_SECTIONS.forEach(sec => {
+              sectionRemainingSeconds[sec] = (appState.sectionTimers[sec] || 15) * 60;
+            });
+            saveToStorage();
+            syncHeaderUI();
+            renderEditorQuestionList();
+            showToast(`📥 Berhasil mengimpor ${data.questions.length} soal!`);
+          } else {
+            showToast("⚠️ Format file JSON tidak valid.");
+          }
+        } catch (err) {
+          showToast("⚠️ Gagal membaca file JSON.");
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = "";
+    }
+
+    function downloadStandaloneHTML() {
+      const wasStarted = appState.isExamStarted;
+      const prevSection = appState.activeSection;
+      const prevAnswers = { ...appState.userAnswers };
+
+      appState.isExamStarted = false;
+      appState.activeSection = "Intro";
+      appState.userAnswers = {};
+      renderAllCBT();
+
+      let docHTML = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+      const serializedQuestions = JSON.stringify(appState.questions);
+      docHTML = docHTML.replace(
+        /const DEFAULT_QUESTIONS = \[[\s\S]*?\];/,
+        `const DEFAULT_QUESTIONS = ${serializedQuestions};`
+      );
+
+      appState.isExamStarted = wasStarted;
+      appState.activeSection = prevSection;
+      appState.userAnswers = prevAnswers;
+      renderAllCBT();
+
+      const blob = new Blob([docHTML], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ujian-jft-basic-custom.html";
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("💾 File HTML mandiri dengan gerbang Intro & soal Anda telah diunduh!");
+    }
+  </script>
+</body>
+</html>
