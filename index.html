@@ -578,7 +578,6 @@
               <input id="f-instruction" type="text" required value="Read the sentence and choose the word that fits in (      ) most." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
             </div>
 
-            <!-- Teks Bacaan / Wacana (Opsional - Cocok untuk Reading Comprehension) -->
             <!-- Gambar Soal: unggah file, tempel gambar, atau gunakan URL -->
             <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
               <label for="f-image" class="block text-xs font-semibold text-slate-700">Gambar Soal (Opsional)</label>
@@ -828,9 +827,14 @@
             <h4 class="font-bold text-sm text-gray-900 flex items-center gap-1.5">
               <span>🏆</span> Papan Pengumuman Skor Peserta (Maks. 250 Poin • Lulus ≥ 200)
             </h4>
-            <button type="button" onclick="clearScoreboard()" class="text-xs text-red-600 hover:underline font-semibold cursor-pointer">
-              Hapus Riwayat Papan Skor
-            </button>
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="syncScoreboardFromSheet(true)" class="text-xs text-blue-700 hover:underline font-semibold cursor-pointer">
+                🔄 Refresh Live
+              </button>
+              <button type="button" onclick="clearScoreboard()" class="text-xs text-red-600 hover:underline font-semibold cursor-pointer">
+                Hapus Riwayat Lokal
+              </button>
+            </div>
           </div>
           <div class="overflow-x-auto bg-white rounded-lg border border-gray-200">
             <table class="w-full text-left border-collapse text-xs sm:text-sm">
@@ -909,12 +913,17 @@
 
       <div class="p-5 overflow-y-auto space-y-3 bg-white">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <p class="text-xs sm:text-sm text-gray-600">
+          <p id="scoreboard-sync-status" class="text-xs sm:text-sm text-gray-600">
             Menampilkan catatan nama, hasil nilai, serta tanggal dan jam penyelesaian ujian peserta.
           </p>
-          <button type="button" onclick="clearScoreboard()" class="text-xs text-red-600 hover:underline font-semibold cursor-pointer">
-            Hapus Riwayat Papan Skor
-          </button>
+          <div class="flex items-center gap-3">
+            <button type="button" onclick="syncScoreboardFromSheet(true)" class="text-xs text-blue-700 hover:underline font-semibold cursor-pointer">
+              🔄 Refresh Live
+            </button>
+            <button type="button" onclick="clearScoreboard()" class="text-xs text-red-600 hover:underline font-semibold cursor-pointer">
+              Hapus Riwayat Lokal
+            </button>
+          </div>
         </div>
 
         <div class="overflow-x-auto bg-white rounded-lg border border-gray-200">
@@ -954,6 +963,8 @@
     const STORAGE_KEY = "jft_basic_cbt_simulator_v1";
     const ADMIN_PIN = "saja"; // Password admin langsung di HTML (tidak diambil/ditimpa dari localStorage)
     const REPO_JSON_FILE = "./soal-jft-basic.json";
+    // Ganti URL di bawah ini dengan URL Web App Google Apps Script dari sheet "Point Siswa" (tab JFT)
+    const SCOREBOARD_SHEET_URL = "https://script.google.com/macros/s/AKfycbwX1EpodGorj83rXBgMdZUL-Q1MWU1nXNkz_JaH9FuxKmaLbOz-O2GXmaUk56JKNED5Fg/exec";
     const MAX_EXAM_POINTS = 250;
     const PASSING_EXAM_POINTS = 200;
     const SECTION_ORDER = [
@@ -971,9 +982,7 @@
       "Reading Comprehension"
     ];
 
-    // Data Soal Default Multi-Section (Lengkap 4 Section + Soal No. 5 dari Gambar Referensi)
     const DEFAULT_QUESTIONS = [
-      // --- SECTION 1: Script and Vocabulary ---
       {
         id: 101,
         section: "Script and Vocabulary",
@@ -1040,8 +1049,6 @@
         trans2: "Lately, it has been tough because I don't have money.",
         explanation: "Untuk menyatakan sebab/alasan dari kata sifat negatif (ない → なくて) digunakan bentuk -te."
       },
-
-      // --- SECTION 2: Conversation and Expression ---
       {
         id: 201,
         section: "Conversation and Expression",
@@ -1068,8 +1075,6 @@
         trans2: "Student: (Excuse me). Please say it one more time.",
         explanation: "Ungkapan すみません digunakan untuk meminta perhatian atau maaf saat meminta pengulangan."
       },
-
-      // --- SECTION 3: Listening Comprehension ---
       {
         id: 301,
         section: "Listening Comprehension",
@@ -1096,8 +1101,6 @@
         trans2: "Going back to your room because you forgot your bag. What do you say to your family?",
         explanation: "Saat kembali sebentar mengambil barang yang tertinggal, digunakan ungkapan ちょっともどります."
       },
-
-      // --- SECTION 4: Reading Comprehension ---
       {
         id: 401,
         section: "Reading Comprehension",
@@ -1126,7 +1129,6 @@
       }
     ];
 
-    // State Aplikasi (Diawali di Intro dalam status terkunci hingga tombol Start ditekan)
     let appState = {
       testTitle: "Japan Foundation Test for Basic Japanese",
       candidateName: "",
@@ -1156,6 +1158,76 @@
     let timerInterval = null;
     let isEditorMode = false;
     let isAdminAuthenticated = false;
+
+    function isSheetConfigured() {
+      return typeof SCOREBOARD_SHEET_URL === "string" &&
+        SCOREBOARD_SHEET_URL.trim() !== "" &&
+        !SCOREBOARD_SHEET_URL.includes("https://script.google.com/macros/s/AKfycbwX1EpodGorj83rXBgMdZUL-Q1MWU1nXNkz_JaH9FuxKmaLbOz-O2GXmaUk56JKNED5Fg/exec");
+    }
+
+    function updateSheetStatusLabel(text) {
+      const el = document.getElementById("scoreboard-sync-status");
+      if (el) el.textContent = text;
+    }
+
+    async function pushScoreToSheet(entry) {
+      if (!isSheetConfigured()) {
+        updateSheetStatusLabel("ℹ️ URL Google Apps Script belum diisi — skor tersimpan di perangkat ini.");
+        return false;
+      }
+      try {
+        await fetch(SCOREBOARD_SHEET_URL.trim(), {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            timestampLabel: entry.timestampLabel,
+            name: entry.name,
+            id: entry.id,
+            correct: entry.correct,
+            total: entry.total,
+            points: entry.points,
+            status: entry.passed ? "LULUS" : "BELUM LULUS"
+          })
+        });
+        setTimeout(() => {
+          syncScoreboardFromSheet(false);
+        }, 1200);
+        updateSheetStatusLabel("☁️ Skor live tersinkronisasi ke Google Sheets (Point Siswa / JFT).");
+        return true;
+      } catch (err) {
+        console.warn("Gagal mengirim skor ke Google Sheets:", err);
+        updateSheetStatusLabel("⚠️ Gagal mengirim skor live ke Google Sheets — tersimpan lokal.");
+        return false;
+      }
+    }
+
+    async function syncScoreboardFromSheet(showFeedback = false) {
+      if (!isSheetConfigured()) {
+        updateSheetStatusLabel("ℹ️ URL Google Apps Script belum diisi — menampilkan riwayat lokal.");
+        if (showFeedback) showToast("ℹ️ Isi URL Web App Apps Script terlebih dahulu untuk live sync.");
+        return;
+      }
+      try {
+        updateSheetStatusLabel("🔄 Memuat skor live dari Google Sheets...");
+        const sep = SCOREBOARD_SHEET_URL.includes("?") ? "&" : "?";
+        const res = await fetch(`${SCOREBOARD_SHEET_URL.trim()}${sep}t=${Date.now()}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && data.ok && Array.isArray(data.scores)) {
+          appState.scoreboard = data.scores.slice(0, 50);
+          saveToStorage();
+          renderScoreboard();
+          updateSheetStatusLabel("🟢 Live terhubung ke Google Sheets (Point Siswa — tab JFT).");
+          if (showFeedback) showToast("🔄 Papan skor diperbarui dari Google Sheets!");
+        }
+      } catch (err) {
+        console.warn("Gagal mengambil skor dari Google Sheets:", err);
+        updateSheetStatusLabel("⚠️ Tidak dapat memuat data live (menampilkan cache terakhir).");
+        if (showFeedback) showToast("⚠️ Gagal memuat skor live dari Google Sheets.");
+      }
+    }
+
     function normalizeQuestionsList(rawQuestions) {
       if (!Array.isArray(rawQuestions)) return [];
       return rawQuestions.map((q, idx) => ({
@@ -1225,6 +1297,7 @@
     window.addEventListener("DOMContentLoaded", async () => {
       loadFromStorage();
       await loadQuestionsFromRepoJSON();
+      syncScoreboardFromSheet(false);
       syncHeaderUI();
       renderAllCBT();
       startTimer();
@@ -1280,11 +1353,9 @@
         });
       }
 
-      // Mendukung copas (Ctrl+V / Cmd+V) gambar langsung saat berada di mode editor soal
       document.addEventListener("paste", (e) => {
         if (!isEditorMode) return;
         const target = e.target;
-        // Biarkan paste teks normal jika sedang mengetik di input/textarea selain kolom gambar
         if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA") && target.id !== "f-image") {
           const hasImageItem = Array.from(e.clipboardData?.items || []).some(item => item.type && item.type.startsWith("image/"));
           if (!hasImageItem) return;
@@ -1293,7 +1364,6 @@
       });
     });
 
-    // Simpan & Muat dari LocalStorage
     function saveToStorage() {
       const scorePayload = JSON.stringify(appState.scoreboard || []);
       try {
@@ -1306,15 +1376,14 @@
           scoreboard: appState.scoreboard
         }));
       } catch (e) {
-        console.warn("Gagal menyimpan paket lengkap ke localStorage (kemungkinan ukuran gambar/audio besar):", e);
-        // Cadangan khusus riwayat skor & pengaturan agar riwayat skor tetap tersimpan aman
+        console.warn("Gagal menyimpan paket lengkap ke localStorage:", e);
         try {
           localStorage.setItem(`${STORAGE_KEY}_scoreboard`, scorePayload);
           localStorage.setItem(`${STORAGE_KEY}_meta`, JSON.stringify({
             testTitle: appState.testTitle,
             candidateName: appState.candidateName,
             candidateId: appState.candidateId,
-              sectionTimers: appState.sectionTimers
+            sectionTimers: appState.sectionTimers
           }));
         } catch (err2) {
           console.warn("Gagal menyimpan cadangan riwayat skor:", err2);
@@ -1334,26 +1403,7 @@
             appState.sectionTimers = { ...appState.sectionTimers, ...parsed.sectionTimers };
           }
           if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-            appState.questions = parsed.questions.map((q, idx) => ({
-              id: q && q.id !== undefined ? q.id : (1000 + idx),
-              section: QUESTION_SECTIONS.includes(q && q.section) ? q.section : "Script and Vocabulary",
-              instruction: (q && typeof q.instruction === "string" && q.instruction.trim() !== "")
-                ? q.instruction
-                : "Read the sentence and choose the word that fits in (      ) most.",
-              passage: (q && typeof q.passage === "string") ? q.passage : "",
-              imageUrl: (q && typeof q.imageUrl === "string") ? q.imageUrl : "",
-              audioUrl: (q && typeof q.audioUrl === "string") ? q.audioUrl : "",
-              prompt: (q && typeof q.prompt === "string") ? q.prompt : "",
-              options: Array.isArray(q && q.options) && q.options.length > 0
-                ? q.options.slice(0, 4).map(opt => String(opt ?? ""))
-                : ["", "", "", ""],
-              correctIndex: (q && typeof q.correctIndex === "number" && q.correctIndex >= 0 && q.correctIndex < 4)
-                ? q.correctIndex
-                : 0,
-              trans1: (q && typeof q.trans1 === "string") ? q.trans1 : "",
-              trans2: (q && typeof q.trans2 === "string") ? q.trans2 : "",
-              explanation: (q && typeof q.explanation === "string") ? q.explanation : ""
-            }));
+            appState.questions = normalizeQuestionsList(parsed.questions);
           }
           if (Array.isArray(parsed.scoreboard)) {
             appState.scoreboard = parsed.scoreboard;
@@ -1370,10 +1420,8 @@
         appState.userAnswers = {};
       }
 
-      // Pastikan adminPin selalu mengikuti konstanta HTML
       appState.adminPin = ADMIN_PIN;
 
-      // Sinkronkan cadangan riwayat skor jika ada
       try {
         const backupScoreRaw = localStorage.getItem(`${STORAGE_KEY}_scoreboard`);
         if (backupScoreRaw) {
@@ -1401,12 +1449,10 @@
       }, 3000);
     }
 
-    // Helper: Ambil daftar soal milik section tertentu
     function getQuestionsBySection(secName) {
       return appState.questions.filter(q => q.section === secName);
     }
 
-    // ==================== TIMER LOGIC ====================
     function startTimer() {
       clearInterval(timerInterval);
       updateTimerDisplay();
@@ -1447,7 +1493,6 @@
       }
     }
 
-    // ==================== GERBANG INTRO & VALIDASI MULAI UJIAN ====================
     function handleIntroCandidateInput() {
       const nameInput = document.getElementById("intro-candidate-name");
       const idInput = document.getElementById("intro-candidate-id");
@@ -1520,7 +1565,6 @@
       }
     }
 
-    // ==================== NAVIGASI SECTION & SOAL (TERKUNCI SEBELUM START) ====================
     function switchSection(sectionName) {
       if (!appState.isExamStarted && sectionName !== "Intro") {
         showToast("🔒 Isi Nama Peserta dan tekan tombol 'Start Test' di halaman Intro terlebih dahulu!");
@@ -1572,7 +1616,6 @@
         appState.questions = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
       }
 
-      // Jika sedang berada di section soal dan currentQuestionId belum valid/kosong, arahkan ke soal pertama yang tersedia
       if (appState.activeSection !== "Intro") {
         const secQuestions = getQuestionsBySection(appState.activeSection);
         if (secQuestions.length > 0) {
@@ -1942,7 +1985,6 @@
       }
     }
 
-    // ==================== FINISH SECTION & EVALUASI ====================
     function handleFinishSectionClick() {
       if (appState.activeSection === "Intro") {
         if (appState.isExamStarted) {
@@ -1969,7 +2011,6 @@
       }
     }
 
-    // ==================== MODAL TERJEMAHAN (YOUR LANGUAGE 1 & 2) ====================
     function openTranslationModal(langNum) {
       const secQuestions = getQuestionsBySection(appState.activeSection);
       const q = secQuestions.find(item => item.id === appState.currentQuestionId);
@@ -1996,7 +2037,6 @@
       document.getElementById("translation-modal").classList.add("hidden");
     }
 
-    // ==================== MODAL FINISH SECTION & SKOR ====================
     function openFinishModal() {
       const total = appState.questions.length;
       let correctCount = 0;
@@ -2091,7 +2131,7 @@
       });
       const timestampLabel = `${dateStr}, ${timeStr}`;
 
-      appState.scoreboard.unshift({
+      const entry = {
         name,
         id,
         correct,
@@ -2103,11 +2143,14 @@
         date: dateStr,
         time: timeStr,
         timestampLabel
-      });
-      if (appState.scoreboard.length > 30) {
-        appState.scoreboard = appState.scoreboard.slice(0, 30);
+      };
+
+      appState.scoreboard.unshift(entry);
+      if (appState.scoreboard.length > 50) {
+        appState.scoreboard = appState.scoreboard.slice(0, 50);
       }
       saveToStorage();
+      pushScoreToSheet(entry);
     }
 
     function renderScoreboard() {
@@ -2164,12 +2207,12 @@
     function openScoreboardModal() {
       const modal = document.getElementById("scoreboard-modal");
       if (!modal) return;
-      // Pindahkan modal ke akhir <body> agar tidak terhalang container ber-overflow/z-index di atasnya
       if (modal.parentElement !== document.body) {
         document.body.appendChild(modal);
       }
       loadFromStorage();
       renderScoreboard();
+      syncScoreboardFromSheet(false);
       modal.classList.remove("hidden");
       modal.style.setProperty("position", "fixed", "important");
       modal.style.setProperty("inset", "0", "important");
@@ -2191,7 +2234,7 @@
       } catch (e) {}
       saveToStorage();
       renderScoreboard();
-      showToast("🗑️ Riwayat papan pengumuman skor dihapus.");
+      showToast("🗑️ Riwayat papan skor lokal dihapus.");
     }
 
     function closeFinishModal() {
@@ -2222,7 +2265,6 @@
       showToast("🔄 Sesi ujian, nama, dan nomor peserta direset. Silakan isi data peserta baru di halaman Intro.");
     }
 
-    // ==================== EDIT NAMA KANDIDAT CEPAT ====================
     function promptEditCandidate() {
       document.getElementById("quick-candidate-input").value = appState.candidateName;
       document.getElementById("candidate-modal").classList.remove("hidden");
@@ -2246,7 +2288,6 @@
       closeCandidateModal();
     }
 
-    // ==================== MODE PEMBUAT / EDITOR SOAL ====================
     function syncHeaderUI(syncIntroInputs = true) {
       document.getElementById("subheader-test-title").textContent = appState.testTitle;
       const displayCandidate = appState.candidateName.trim()
@@ -2363,12 +2404,10 @@
           }
           renderEditorQuestionList();
         } else {
-          // Pastikan semua modal/overlay yang mungkin terbuka tertutup rapi saat kembali ke halaman ujian
           closeAdminLoginModal();
           closeScoreboardModal();
           closeTranslationModal();
 
-          // Kembalikan ke tampilan awal (Intro / Start Ujian) setelah keluar dari mode editor soal
           appState.isExamStarted = false;
           appState.activeSection = "Intro";
           const firstQs = getQuestionsBySection("Script and Vocabulary");
@@ -2415,8 +2454,6 @@
       syncHeaderUI();
       saveToStorage();
     }
-
-
 
     function resetTimerFromConfig() {
       updateConfig();
@@ -2541,7 +2578,6 @@
       previewEditorImage();
     }
 
-    // Ekstrak ID video YouTube dari berbagai format link YouTube
     function extractYouTubeVideoId(url) {
       if (!url) return "";
       const trimmed = url.trim();
@@ -2845,7 +2881,6 @@
       });
     }
 
-    // ==================== EKSPOR / IMPOR & UNDUH HTML MANDIRI ====================
     function exportJSON() {
       const payload = {
         testTitle: appState.testTitle,
