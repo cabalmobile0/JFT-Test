@@ -2157,7 +2157,7 @@
 
       document.getElementById("cfg-test-title").value = appState.testTitle;
       document.getElementById("cfg-candidate-name").value = appState.candidateName;
-      document.getElementById("cfg-admin-pin").value = appState.adminPin || "admin123";
+      document.getElementById("cfg-admin-pin").value = appState.adminPin || "yama97";
       document.getElementById("cfg-timer-script").value = appState.sectionTimers["Script and Vocabulary"] || 15;
       document.getElementById("cfg-timer-conv").value = appState.sectionTimers["Conversation and Expression"] || 15;
       document.getElementById("cfg-timer-list").value = appState.sectionTimers["Listening Comprehension"] || 15;
@@ -2220,7 +2220,7 @@
       }
       const pinInput = document.getElementById("admin-pin-input");
       const enteredPin = (pinInput ? pinInput.value : "").trim();
-      const expectedPin = (appState.adminPin || "admin123").trim();
+      const expectedPin = (appState.adminPin || "yama97").trim();
 
       if (enteredPin === expectedPin) {
         isAdminAuthenticated = true;
