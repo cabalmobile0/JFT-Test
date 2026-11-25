@@ -646,14 +646,14 @@
                 <label class="text-xs font-semibold text-slate-700">Pertanyaan Bahasa Jepang (Teks Utama)</label>
                 <div class="flex gap-1.5">
                   <button type="button" onclick="insertBlankToken()" class="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-[11px] font-medium cursor-pointer">
-                    + Sisipkan Kurung Kosong （　　　）
+                    + Sisipkan Kurung Kosong （   ）
                   </button>
                   <button type="button" onclick="insertFuriganaTemplate()" class="px-2 py-0.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded text-[11px] font-medium cursor-pointer">
-                    + Furigana &lt;ruby&gt;
+                    + Furigana <ruby>
                   </button>
                 </div>
               </div>
-              <textarea id="f-prompt" rows="2" required placeholder="Contoh: このごろはお金（　　　）大変です。" class="jp-text w-full px-3 py-2 border border-slate-300 rounded-lg text-base focus:ring-2 focus:ring-[#5b7836] outline-none"></textarea>
+              <textarea id="f-prompt" rows="2" required placeholder="Contoh: このごろはお金（   ）大変です。" class="jp-text w-full px-3 py-2 border border-slate-300 rounded-lg text-base focus:ring-2 focus:ring-[#5b7836] outline-none"></textarea>
             </div>
 
             <!-- Pilihan Jawaban 1 - 4 -->
@@ -744,7 +744,7 @@
     <div class="bg-white rounded-lg shadow-xl border border-gray-300 max-w-md w-full overflow-hidden">
       <div class="bg-[#5b7836] text-white px-4 py-2.5 flex items-center justify-between">
         <span id="trans-modal-title" class="font-bold text-sm">Your Language 1 (Bahasa Indonesia)</span>
-        <button onclick="closeTranslationModal()" class="text-white hover:text-gray-200 font-bold text-lg leading-none cursor-pointer">&times;</button>
+        <button onclick="closeTranslationModal()" class="text-white hover:text-gray-200 font-bold text-lg leading-none cursor-pointer">×</button>
       </div>
       <div class="p-5 space-y-3 text-sm text-gray-800">
         <div>
@@ -770,7 +770,7 @@
     <div class="bg-white rounded-xl shadow-xl border border-gray-300 max-w-sm w-full overflow-hidden">
       <div class="bg-[#567c2b] text-white px-4 py-2.5 flex items-center justify-between">
         <span class="font-bold text-sm">✎ Ubah Nama Kandidat</span>
-        <button type="button" onclick="closeCandidateModal()" class="text-white hover:text-gray-200 font-bold text-lg leading-none cursor-pointer">&times;</button>
+        <button type="button" onclick="closeCandidateModal()" class="text-white hover:text-gray-200 font-bold text-lg leading-none cursor-pointer">×</button>
       </div>
       <div class="p-4 space-y-3">
         <label for="quick-candidate-input" class="block text-xs font-semibold text-gray-700">Nama Lengkap Peserta</label>
@@ -788,7 +788,7 @@
     <div class="bg-white rounded-xl shadow-2xl border border-gray-300 max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
       <div class="bg-[#111111] text-white px-5 py-3.5 flex items-center justify-between">
         <h3 class="font-bold text-base sm:text-lg">Hasil Evaluasi Keseluruhan — JFT-Basic</h3>
-        <button type="button" onclick="closeFinishModal()" class="text-gray-300 hover:text-white text-2xl leading-none cursor-pointer">&times;</button>
+        <button type="button" onclick="closeFinishModal()" class="text-gray-300 hover:text-white text-2xl leading-none cursor-pointer">×</button>
       </div>
 
       <div class="p-5 overflow-y-auto space-y-5">
@@ -877,7 +877,7 @@
     <div class="bg-white rounded-xl shadow-2xl border border-gray-300 max-w-sm w-full overflow-hidden opacity-100">
       <div class="bg-[#111111] text-white px-4 py-3 flex items-center justify-between">
         <span class="font-bold text-sm flex items-center gap-1.5"><span>🔐</span> Login Khusus Admin</span>
-        <button id="btn-close-admin-top" type="button" onclick="closeAdminLoginModal()" class="text-gray-300 hover:text-white font-bold text-xl leading-none cursor-pointer">&times;</button>
+        <button id="btn-close-admin-top" type="button" onclick="closeAdminLoginModal()" class="text-gray-300 hover:text-white font-bold text-xl leading-none cursor-pointer">×</button>
       </div>
       <form id="admin-login-form" onsubmit="submitAdminLogin(event)" class="p-4 space-y-3 bg-white">
         <p class="text-xs text-gray-600 leading-relaxed">
@@ -904,7 +904,7 @@
           <span>🏆</span>
           <span>Papan Pengumuman Skor Peserta</span>
         </h3>
-        <button id="btn-close-scoreboard-top" type="button" class="text-gray-300 hover:text-white text-2xl leading-none cursor-pointer">&times;</button>
+        <button id="btn-close-scoreboard-top" type="button" class="text-gray-300 hover:text-white text-2xl leading-none cursor-pointer">×</button>
       </div>
 
       <div class="p-5 overflow-y-auto space-y-3 bg-white">
@@ -952,7 +952,7 @@
   <!-- ==================== JAVASCRIPT LOGIC ==================== -->
   <script>
     const STORAGE_KEY = "jft_basic_cbt_simulator_v1";
-    const ADMIN_PIN = "yama97"; // Password admin langsung di HTML (tidak diambil/ditimpa dari localStorage)
+    const ADMIN_PIN = "saja"; // Password admin langsung di HTML (tidak diambil/ditimpa dari localStorage)
     const REPO_JSON_FILE = "./soal-jft-basic.json";
     const MAX_EXAM_POINTS = 250;
     const PASSING_EXAM_POINTS = 200;
@@ -981,7 +981,7 @@
         passage: "",
         imageUrl: "",
         audioUrl: "",
-        prompt: "きのう　ともだちと　えいがを（　　　）に　いきました。",
+        prompt: "きのう ともだちと えいがを（   ）に いきました。",
         options: ["みます", "みて", "み", "みた"],
         correctIndex: 2,
         trans1: "Kemarin saya pergi menonton film bersama teman.",
@@ -994,7 +994,7 @@
         instruction: "Read the sentence and choose the word that fits in (      ) most.",
         passage: "",
         audioUrl: "",
-        prompt: "この　へやは　あかるくて（　　　）ですね。",
+        prompt: "この へやは あかるくて（   ）ですね。",
         options: ["きれい", "きれいだ", "きれいで", "きれいな"],
         correctIndex: 0,
         trans1: "Kamar ini terang dan bersih/indah ya.",
@@ -1007,7 +1007,7 @@
         instruction: "Read the sentence and choose the word that fits in (      ) most.",
         passage: "",
         audioUrl: "",
-        prompt: "あしたは　あめが（　　　）かもしれません。",
+        prompt: "あしたは あめが（   ）かもしれません。",
         options: ["ふり", "ふる", "ふって", "ふります"],
         correctIndex: 1,
         trans1: "Besok mungkin akan turun hujan.",
@@ -1020,7 +1020,7 @@
         instruction: "Read the sentence and choose the word that fits in (      ) most.",
         passage: "",
         audioUrl: "",
-        prompt: "まいあさ　７じに　コーヒーを（　　　）います。",
+        prompt: "まいあさ ７じに コーヒーを（   ）います。",
         options: ["のんで", "のむ", "のんだ", "のまない"],
         correctIndex: 0,
         trans1: "Setiap pagi jam 7 saya sedang/rutin minum kopi.",
@@ -1033,7 +1033,7 @@
         instruction: "Read the sentence and choose the word that fits in (      ) most.",
         passage: "",
         audioUrl: "",
-        prompt: "このごろはお金（　　　）大変です。",
+        prompt: "このごろはお金（   ）大変です。",
         options: ["ないで", "なくて", "なくても", "なければ"],
         correctIndex: 1,
         trans1: "Akhir-akhir ini rasanya sulit karena tidak punya uang.",
@@ -1046,9 +1046,9 @@
         id: 201,
         section: "Conversation and Expression",
         instruction: "Read the conversation and choose the expression that fits in (      ) most.",
-        passage: "A: すみません、えきは　どちらですか。\nB: あそこに　みえる　たてものですよ。",
+        passage: "A: すみません、えきは どちらですか。\nB: あそこに みえる たてものですよ。",
         audioUrl: "",
-        prompt: "A: ありがとうございます。（　　　）。",
+        prompt: "A: ありがとうございます。（   ）。",
         options: ["どういたしまして", "おやすみなさい", "いってらっしゃい", "ごちそうさまでした"],
         correctIndex: 0,
         trans1: "A: Terima kasih. (Sama-sama).",
@@ -1059,9 +1059,9 @@
         id: 202,
         section: "Conversation and Expression",
         instruction: "Read the conversation and choose the sentence that fits in (      ) most.",
-        passage: "せんせい: テストは　あしたの　９じからです。",
+        passage: "せんせい: テストは あしたの ９じからです。",
         audioUrl: "",
-        prompt: "がくせい: （　　　）。もういちど　おねがいします。",
+        prompt: "がくせい: （   ）。もういちど おねがいします。",
         options: ["すみません", "おめでとうございます", "おつかれさまでした", "いただきます"],
         correctIndex: 0,
         trans1: "Siswa: (Maaf). Mohon ulangi sekali lagi.",
@@ -1076,7 +1076,7 @@
         instruction: "Listen to the audio (or press Play TTS) and choose the best response.",
         passage: "",
         audioUrl: "",
-        prompt: "でんしゃの　なかで　ひとに　ききます。「（　　　）この　でんしゃは　しんじゅくに　いきますか。」",
+        prompt: "でんしゃの なかで ひとに ききます。「（   ）この でんしゃは しんじゅくに いきますか。」",
         options: ["すみませんが", "せっかくですが", "なるほど", "ざんねんですが"],
         correctIndex: 0,
         trans1: "Bertanya kepada orang di dalam kereta: '(Permisi,) apakah kereta ini pergi ke Shinjuku?'",
@@ -1089,8 +1089,8 @@
         instruction: "Listen to the situation and choose what you should say.",
         passage: "",
         audioUrl: "",
-        prompt: "かばんを　わすれて　へやに　もどります。かぞくに　なんといいますか。",
-        options: ["いってきます", "ちょっと　もどります", "ただいま", "おかえりなさい"],
+        prompt: "かばんを わすれて へやに もどります。かぞくに なんといいますか。",
+        options: ["いってきます", "ちょっと もどります", "ただいま", "おかえりなさい"],
         correctIndex: 1,
         trans1: "Kembali ke kamar karena lupa tas. Apa yang Anda katakan kepada keluarga?",
         trans2: "Going back to your room because you forgot your bag. What do you say to your family?",
@@ -1102,9 +1102,9 @@
         id: 401,
         section: "Reading Comprehension",
         instruction: "Read the notice and choose the correct answer for (      ).",
-        passage: "【お知らせ】\nらいしゅうの　げつようびは　としょかんが　やすみです。\nほんを　かりたい　ひとは　きんようびまでに　きてください。",
+        passage: "【お知らせ】\nらいしゅうの げつようびは としょかんが やすみです。\nほんを かりたい ひとは きんようびまでに きてください。",
         audioUrl: "",
-        prompt: "としょかんは　いつ　やすみですか。",
+        prompt: "としょかんは いつ やすみですか。",
         options: ["げつようび", "すいようび", "きんようび", "にちようび"],
         correctIndex: 0,
         trans1: "Kapan perpustakaan libur? (Hari Senin).",
@@ -1115,9 +1115,9 @@
         id: 402,
         section: "Reading Comprehension",
         instruction: "Read the memo and choose the word that fits in (      ) most.",
-        passage: "みきさんへ\nきょうは　６じに　かいしゃを　でます。\nばんごはんは　そとで　たべて　ください。\nたなか",
+        passage: "みきさんへ\nきょうは ６じに かいしゃを でます。\nばんごはんは そとで たべて ください。\nたなか",
         audioUrl: "",
-        prompt: "たなかさんは　きょう　（　　　）かいしゃを　でますか。",
+        prompt: "たなかさんは きょう （   ）かいしゃを でますか。",
         options: ["６じに", "７じに", "８じに", "９じに"],
         correctIndex: 0,
         trans1: "Jam berapa Tanaka keluar dari kantor hari ini? (Jam 6).",
@@ -1182,10 +1182,6 @@
 
     async function loadQuestionsFromRepoJSON(forceSync = false) {
       try {
-        const hasLocalData = !!localStorage.getItem(STORAGE_KEY);
-        if (hasLocalData && !forceSync) {
-          return false;
-        }
         const res = await fetch(`${REPO_JSON_FILE}?v=${Date.now()}`, { cache: "no-store" });
         if (!res.ok) return false;
         const data = await res.json();
@@ -1216,7 +1212,9 @@
           sectionRemainingSeconds[sec] = (appState.sectionTimers[sec] || 15) * 60;
         });
 
-        saveToStorage();
+        if (forceSync || !localStorage.getItem(STORAGE_KEY)) {
+          saveToStorage();
+        }
         return true;
       } catch (err) {
         console.warn("Tidak dapat memuat soal dari soal-jft-basic.json (menggunakan data lokal/default):", err);
@@ -1226,8 +1224,6 @@
 
     window.addEventListener("DOMContentLoaded", async () => {
       loadFromStorage();
-      syncHeaderUI();
-      renderAllCBT();
       await loadQuestionsFromRepoJSON();
       syncHeaderUI();
       renderAllCBT();
@@ -2136,8 +2132,8 @@
 
       list.forEach((entry, idx) => {
         const dateTimeDisplay = entry.timestampLabel || (entry.date ? `${entry.date}, ${entry.time || ""}` : (entry.time || "-"));
-        const safeName = String(entry.name || "Peserta").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        const safeId = String(entry.id || "-").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safeName = String(entry.name || "Peserta").replace(/</g, "<").replace(/>/g, ">");
+        const safeId = String(entry.id || "-").replace(/</g, "<").replace(/>/g, ">");
         const computedPoints = typeof entry.points === "number"
           ? entry.points
           : (entry.total > 0 ? Math.round((entry.correct / entry.total) * MAX_EXAM_POINTS) : 0);
@@ -2435,7 +2431,7 @@
       const textarea = document.getElementById("f-prompt");
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      const token = "（　　　）";
+      const token = "（   ）";
       textarea.value = textarea.value.substring(0, start) + token + textarea.value.substring(end);
       textarea.focus();
       textarea.selectionStart = textarea.selectionEnd = start + token.length;
