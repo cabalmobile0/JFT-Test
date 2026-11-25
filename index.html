@@ -1162,7 +1162,8 @@
     function isSheetConfigured() {
       return typeof SCOREBOARD_SHEET_URL === "string" &&
         SCOREBOARD_SHEET_URL.trim() !== "" &&
-        !SCOREBOARD_SHEET_URL.includes("https://script.google.com/macros/s/AKfycbwymcjaU5NX8FKLVy4lSSaliJbaHgP6nVguq1CFe_-S-AXzM87KqW_7r0HHSwuziKUTvw/exec");
+        SCOREBOARD_SHEET_URL.includes("/exec") &&
+        !SCOREBOARD_SHEET_URL.includes("MASUKKAN_URL_WEB_APP");
     }
 
     function updateSheetStatusLabel(text) {
