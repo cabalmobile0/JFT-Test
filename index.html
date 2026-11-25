@@ -964,7 +964,7 @@
     const ADMIN_PIN = "saja"; // Password admin langsung di HTML (tidak diambil/ditimpa dari localStorage)
     const REPO_JSON_FILE = "./soal-jft-basic.json";
     // Ganti URL di bawah ini dengan URL Web App Google Apps Script dari sheet "Point Siswa" (tab JFT)
-    const SCOREBOARD_SHEET_URL = "https://script.google.com/macros/s/AKfycbwX1EpodGorj83rXBgMdZUL-Q1MWU1nXNkz_JaH9FuxKmaLbOz-O2GXmaUk56JKNED5Fg/exec";
+    const SCOREBOARD_SHEET_URL = "https://script.google.com/macros/s/AKfycbwymcjaU5NX8FKLVy4lSSaliJbaHgP6nVguq1CFe_-S-AXzM87KqW_7r0HHSwuziKUTvw/exec";
     const MAX_EXAM_POINTS = 250;
     const PASSING_EXAM_POINTS = 200;
     const SECTION_ORDER = [
@@ -1162,7 +1162,7 @@
     function isSheetConfigured() {
       return typeof SCOREBOARD_SHEET_URL === "string" &&
         SCOREBOARD_SHEET_URL.trim() !== "" &&
-        !SCOREBOARD_SHEET_URL.includes("https://script.google.com/macros/s/AKfycbwX1EpodGorj83rXBgMdZUL-Q1MWU1nXNkz_JaH9FuxKmaLbOz-O2GXmaUk56JKNED5Fg/exec");
+        !SCOREBOARD_SHEET_URL.includes("https://script.google.com/macros/s/AKfycbwymcjaU5NX8FKLVy4lSSaliJbaHgP6nVguq1CFe_-S-AXzM87KqW_7r0HHSwuziKUTvw/exec");
     }
 
     function updateSheetStatusLabel(text) {
