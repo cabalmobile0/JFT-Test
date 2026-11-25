@@ -197,7 +197,7 @@
         </svg>
       </div>
       <div class="flex flex-col leading-tight">
-        <span class="text-xs sm:text-sm font-medium text-gray-100">Section Time Remaining</span>
+        <span class="text-xs sm:text-sm font-medium text-gray-100">Total Time Remaining</span>
         <span id="timer-display" class="font-mono font-bold text-base sm:text-lg tracking-wider text-white">--:--:--</span>
       </div>
     </div>
@@ -344,7 +344,7 @@
           <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2">
             <h3 class="font-bold text-base text-gray-900">📋 Daftar Bagian Ujian (Sections):</h3>
             <p id="intro-sections-hint" class="text-xs sm:text-sm text-gray-600">
-              Seluruh bagian ujian di bawah ini dan menu kiri masih terkunci. Isi <strong>Nama Lengkap Peserta</strong> lalu klik tombol <strong>Start Test / Mulai Ujian</strong> untuk membuka akses dan memulai timer.
+              Seluruh bagian ujian di bawah ini dan menu kiri masih terkunci. Isi <strong>Nama Lengkap Peserta</strong> lalu klik tombol <strong>Start Test / Mulai Ujian</strong> untuk membuka akses dan memulai timer total <strong>60 menit</strong>.
             </p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2" id="intro-sections-cards">
               <!-- Diisi dinamis oleh JS -->
@@ -506,8 +506,8 @@
 
       <!-- Pengaturan Umum Ujian -->
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-        <h2 class="text-base font-bold text-slate-800 mb-3 border-b pb-2">⚙️ Pengaturan Header, PIN Admin & Durasi Timer Per Section</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+        <h2 class="text-base font-bold text-slate-800 mb-3 border-b pb-2">⚙️ Pengaturan Header, PIN Admin & Total Durasi Ujian (60 Menit)</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <div class="sm:col-span-2">
             <label class="block text-xs font-semibold text-slate-600 mb-1">Judul Tes (Sub-header Kiri)</label>
             <input id="cfg-test-title" type="text" oninput="updateConfig()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
@@ -521,27 +521,16 @@
             <input id="cfg-admin-pin" type="text" readonly title="PIN admin diatur langsung di dalam kode HTML" class="w-full px-3 py-2 border border-slate-200 bg-slate-100 text-slate-700 rounded-lg text-sm font-mono cursor-not-allowed outline-none" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Scri... (Menit)</label>
-            <input id="cfg-timer-script" type="number" min="1" max="180" oninput="updateConfig()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Co... (Menit)</label>
-            <input id="cfg-timer-conv" type="number" min="1" max="180" oninput="updateConfig()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">List... / Rea... (Menit)</label>
-            <div class="flex gap-1.5">
-              <input id="cfg-timer-list" type="number" min="1" max="180" title="Durasi Listening (Menit)" oninput="updateConfig()" class="w-1/2 px-2 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
-              <input id="cfg-timer-read" type="number" min="1" max="180" title="Durasi Reading (Menit)" oninput="updateConfig()" class="w-1/2 px-2 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
-            </div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Total Waktu Ujian (Menit)</label>
+            <input id="cfg-timer-total" type="number" min="1" max="300" value="60" oninput="updateConfig()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#567c2b] outline-none" />
           </div>
         </div>
         <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
-            <span id="cfg-pin-status" class="text-xs text-slate-600 font-medium">🔒 Password admin aktif langsung dari HTML (bukan localStorage).</span>
+            <span id="cfg-pin-status" class="text-xs text-slate-600 font-medium">🔒 Waktu berjalan bersama 60 menit untuk seluruh section (tanpa batas waktu per sesi).</span>
           </div>
           <button type="button" onclick="resetTimerFromConfig()" class="px-3.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-xs font-semibold cursor-pointer">
-            ⏱️ Terapkan & Reset Semua Timer Section
+            ⏱️ Terapkan & Reset Timer Total
           </button>
         </div>
       </div>
@@ -1129,18 +1118,15 @@
       }
     ];
 
+    const DEFAULT_TOTAL_MINUTES = 60;
+
     let appState = {
       testTitle: "Japan Foundation Test for Basic Japanese",
       candidateName: "",
       candidateId: "",
       adminPin: ADMIN_PIN,
       isExamStarted: false,
-      sectionTimers: {
-        "Script and Vocabulary": 15,
-        "Conversation and Expression": 15,
-        "Listening Comprehension": 15,
-        "Reading Comprehension": 15
-      },
+      totalExamMinutes: DEFAULT_TOTAL_MINUTES,
       questions: JSON.parse(JSON.stringify(DEFAULT_QUESTIONS)),
       scoreboard: [],
       activeSection: "Intro",
@@ -1148,12 +1134,7 @@
       userAnswers: {}
     };
 
-    let sectionRemainingSeconds = {
-      "Script and Vocabulary": 15 * 60,
-      "Conversation and Expression": 15 * 60,
-      "Listening Comprehension": 15 * 60,
-      "Reading Comprehension": 15 * 60
-    };
+    let totalRemainingSeconds = DEFAULT_TOTAL_MINUTES * 60;
 
     let timerInterval = null;
     let isEditorMode = false;
@@ -1269,8 +1250,8 @@
           if (typeof data.testTitle === "string" && data.testTitle.trim() !== "") {
             appState.testTitle = data.testTitle;
           }
-          if (data.sectionTimers && typeof data.sectionTimers === "object") {
-            appState.sectionTimers = { ...appState.sectionTimers, ...data.sectionTimers };
+          if (typeof data.totalExamMinutes === "number" && data.totalExamMinutes > 0) {
+            appState.totalExamMinutes = data.totalExamMinutes;
           }
           if (Array.isArray(data.scoreboard) && appState.scoreboard.length === 0) {
             appState.scoreboard = data.scoreboard;
@@ -1281,9 +1262,7 @@
         const firstSecQs = getQuestionsBySection(firstSec);
         appState.currentQuestionId = firstSecQs.length > 0 ? firstSecQs[0].id : normalized[0].id;
 
-        QUESTION_SECTIONS.forEach(sec => {
-          sectionRemainingSeconds[sec] = (appState.sectionTimers[sec] || 15) * 60;
-        });
+        totalRemainingSeconds = (appState.totalExamMinutes || DEFAULT_TOTAL_MINUTES) * 60;
 
         if (forceSync || !localStorage.getItem(STORAGE_KEY)) {
           saveToStorage();
@@ -1372,7 +1351,7 @@
           testTitle: appState.testTitle,
           candidateName: appState.candidateName,
           candidateId: appState.candidateId,
-          sectionTimers: appState.sectionTimers,
+          totalExamMinutes: appState.totalExamMinutes,
           questions: appState.questions,
           scoreboard: appState.scoreboard
         }));
@@ -1400,8 +1379,8 @@
           if (parsed.testTitle) appState.testTitle = parsed.testTitle;
           if (typeof parsed.candidateName === "string") appState.candidateName = parsed.candidateName;
           if (typeof parsed.candidateId === "string") appState.candidateId = parsed.candidateId;
-          if (parsed.sectionTimers) {
-            appState.sectionTimers = { ...appState.sectionTimers, ...parsed.sectionTimers };
+          if (typeof parsed.totalExamMinutes === "number" && parsed.totalExamMinutes > 0) {
+            appState.totalExamMinutes = parsed.totalExamMinutes;
           }
           if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
             appState.questions = normalizeQuestionsList(parsed.questions);
@@ -1435,9 +1414,7 @@
         console.warn("Gagal memuat cadangan riwayat skor:", errScore);
       }
 
-      QUESTION_SECTIONS.forEach(sec => {
-        sectionRemainingSeconds[sec] = (appState.sectionTimers[sec] || 15) * 60;
-      });
+      totalRemainingSeconds = (appState.totalExamMinutes || DEFAULT_TOTAL_MINUTES) * 60;
     }
 
     function showToast(msg) {
@@ -1459,14 +1436,13 @@
       updateTimerDisplay();
       timerInterval = setInterval(() => {
         if (!appState.isExamStarted || appState.activeSection === "Intro") return;
-        const sec = appState.activeSection;
-        if (sectionRemainingSeconds[sec] > 0) {
-          sectionRemainingSeconds[sec]--;
+        if (totalRemainingSeconds > 0) {
+          totalRemainingSeconds--;
           updateTimerDisplay();
         } else {
           clearInterval(timerInterval);
-          showToast(`⏰ Waktu untuk ${sec} telah habis!`);
-          handleFinishSectionClick();
+          showToast("⏰ Total waktu ujian 60 menit telah habis!");
+          openFinishModal();
         }
       }, 1000);
     }
@@ -1478,7 +1454,7 @@
         el.classList.remove("text-red-400");
         return;
       }
-      const secsTotal = sectionRemainingSeconds[appState.activeSection] ?? 0;
+      const secsTotal = totalRemainingSeconds ?? 0;
       const hrs = Math.floor(secsTotal / 3600);
       const mins = Math.floor((secsTotal % 3600) / 60);
       const secs = secsTotal % 60;
@@ -1660,7 +1636,7 @@
             lockBadge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300";
           }
           if (sectionsHint) {
-            sectionsHint.innerHTML = "Ujian sedang berlangsung. Anda dapat mengklik section mana pun di menu kiri atau kartu bagian di bawah ini:";
+            sectionsHint.innerHTML = "Ujian sedang berlangsung (total waktu 60 menit). Anda dapat mengklik section mana pun di menu kiri atau kartu bagian di bawah ini:";
           }
           if (startBtn) {
             startBtn.innerHTML = `<span>Lanjutkan Mengerjakan Ujian</span><span>▶</span>`;
@@ -1671,7 +1647,7 @@
             lockBadge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300";
           }
           if (sectionsHint) {
-            sectionsHint.innerHTML = "Seluruh bagian ujian di bawah ini dan menu kiri masih terkunci. Isi <strong>Nama Lengkap Peserta</strong> lalu klik tombol <strong>Start Test / Mulai Ujian</strong> untuk membuka akses dan memulai timer.";
+            sectionsHint.innerHTML = "Seluruh bagian ujian di bawah ini dan menu kiri masih terkunci. Isi <strong>Nama Lengkap Peserta</strong> lalu klik tombol <strong>Start Test / Mulai Ujian</strong> untuk membuka akses dan memulai timer total <strong>60 menit</strong>.";
           }
           if (startBtn) {
             startBtn.innerHTML = `<span>Start Test / Mulai Ujian</span><span>▶</span>`;
@@ -1749,7 +1725,7 @@
               <span>${appState.isExamStarted ? "" : "🔒"} Part ${idx + 1}</span>
             </div>
             <div class="font-bold text-sm text-gray-900">${sec}</div>
-            <div class="text-xs text-gray-500 mt-0.5">${qs.length} Soal • Durasi ${appState.sectionTimers[sec] || 15} Menit</div>
+            <div class="text-xs text-gray-500 mt-0.5">${qs.length} Soal • Total 60 Menit</div>
           </div>
           <div class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-700 border border-slate-200">
             ${answered}/${qs.length}
@@ -2250,9 +2226,7 @@
       appState.activeSection = "Intro";
       const firstQs = getQuestionsBySection("Script and Vocabulary");
       appState.currentQuestionId = firstQs.length > 0 ? firstQs[0].id : null;
-      QUESTION_SECTIONS.forEach(sec => {
-        sectionRemainingSeconds[sec] = (appState.sectionTimers[sec] || 15) * 60;
-      });
+      totalRemainingSeconds = (appState.totalExamMinutes || DEFAULT_TOTAL_MINUTES) * 60;
       saveToStorage();
       syncHeaderUI(true);
       handleIntroCandidateInput();
@@ -2306,10 +2280,8 @@
       document.getElementById("cfg-test-title").value = appState.testTitle;
       document.getElementById("cfg-candidate-name").value = appState.candidateName;
       document.getElementById("cfg-admin-pin").value = ADMIN_PIN;
-      document.getElementById("cfg-timer-script").value = appState.sectionTimers["Script and Vocabulary"] || 15;
-      document.getElementById("cfg-timer-conv").value = appState.sectionTimers["Conversation and Expression"] || 15;
-      document.getElementById("cfg-timer-list").value = appState.sectionTimers["Listening Comprehension"] || 15;
-      document.getElementById("cfg-timer-read").value = appState.sectionTimers["Reading Comprehension"] || 15;
+      const totalCfgInput = document.getElementById("cfg-timer-total");
+      if (totalCfgInput) totalCfgInput.value = appState.totalExamMinutes || DEFAULT_TOTAL_MINUTES;
     }
 
     function closeAdminLoginModal() {
@@ -2442,15 +2414,8 @@
       appState.candidateName = document.getElementById("cfg-candidate-name").value;
       appState.adminPin = ADMIN_PIN;
 
-      const tScript = parseInt(document.getElementById("cfg-timer-script").value, 10);
-      const tConv = parseInt(document.getElementById("cfg-timer-conv").value, 10);
-      const tList = parseInt(document.getElementById("cfg-timer-list").value, 10);
-      const tRead = parseInt(document.getElementById("cfg-timer-read").value, 10);
-
-      if (!isNaN(tScript) && tScript > 0) appState.sectionTimers["Script and Vocabulary"] = tScript;
-      if (!isNaN(tConv) && tConv > 0) appState.sectionTimers["Conversation and Expression"] = tConv;
-      if (!isNaN(tList) && tList > 0) appState.sectionTimers["Listening Comprehension"] = tList;
-      if (!isNaN(tRead) && tRead > 0) appState.sectionTimers["Reading Comprehension"] = tRead;
+      const tTotal = parseInt(document.getElementById("cfg-timer-total")?.value, 10);
+      if (!isNaN(tTotal) && tTotal > 0) appState.totalExamMinutes = tTotal;
 
       syncHeaderUI();
       saveToStorage();
@@ -2458,11 +2423,9 @@
 
     function resetTimerFromConfig() {
       updateConfig();
-      QUESTION_SECTIONS.forEach(sec => {
-        sectionRemainingSeconds[sec] = (appState.sectionTimers[sec] || 15) * 60;
-      });
+      totalRemainingSeconds = (appState.totalExamMinutes || DEFAULT_TOTAL_MINUTES) * 60;
       startTimer();
-      showToast("⏱️ Semua timer section berhasil diatur ulang!");
+      showToast(`⏱️ Timer total ${appState.totalExamMinutes} menit berhasil diatur ulang!`);
     }
 
     function insertBlankToken() {
@@ -2887,7 +2850,7 @@
         testTitle: appState.testTitle,
         candidateName: appState.candidateName,
         candidateId: appState.candidateId,
-        sectionTimers: appState.sectionTimers,
+        totalExamMinutes: appState.totalExamMinutes,
         questions: appState.questions,
         scoreboard: appState.scoreboard
       };
@@ -2913,15 +2876,13 @@
             if (data.testTitle) appState.testTitle = data.testTitle;
             if (typeof data.candidateName === "string") appState.candidateName = data.candidateName;
             if (typeof data.candidateId === "string") appState.candidateId = data.candidateId;
-            if (data.sectionTimers) appState.sectionTimers = { ...appState.sectionTimers, ...data.sectionTimers };
+            if (typeof data.totalExamMinutes === "number" && data.totalExamMinutes > 0) appState.totalExamMinutes = data.totalExamMinutes;
             appState.userAnswers = {};
             appState.isExamStarted = false;
             appState.activeSection = "Intro";
             const firstQs = getQuestionsBySection("Script and Vocabulary");
             appState.currentQuestionId = firstQs.length > 0 ? firstQs[0].id : appState.questions[0].id;
-            QUESTION_SECTIONS.forEach(sec => {
-              sectionRemainingSeconds[sec] = (appState.sectionTimers[sec] || 15) * 60;
-            });
+            totalRemainingSeconds = (appState.totalExamMinutes || DEFAULT_TOTAL_MINUTES) * 60;
             saveToStorage();
             syncHeaderUI();
             renderEditorQuestionList();
