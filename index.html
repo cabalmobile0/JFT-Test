@@ -98,12 +98,12 @@
     <!-- Kiri: Nomor Soal & Nama Seksi -->
     <div class="flex flex-col leading-tight">
       <div class="flex items-baseline gap-2">
-        <span id="header-q-label" class="font-bold text-base sm:text-lg tracking-wide">Question:</span>
-        <span id="header-q-num" class="font-bold text-lg sm:text-xl text-white">5</span>
+        <span id="header-q-label" class="font-bold text-base sm:text-lg tracking-wide">Guide:</span>
+        <span id="header-q-num" class="font-bold text-lg sm:text-xl text-white">Intro</span>
       </div>
       <div class="flex items-baseline gap-1.5 text-xs sm:text-sm text-gray-200 mt-0.5">
         <span class="font-semibold">Section:</span>
-        <span id="header-section-name" class="truncate max-w-[200px] sm:max-w-xs">Script and Vocabulary</span>
+        <span id="header-section-name" class="truncate max-w-[200px] sm:max-w-xs">Introduction & Candidate Info</span>
       </div>
     </div>
 
@@ -117,7 +117,7 @@
       </div>
       <div class="flex flex-col leading-tight">
         <span class="text-xs sm:text-sm font-medium text-gray-100">Section Time Remaining</span>
-        <span id="timer-display" class="font-mono font-bold text-base sm:text-lg tracking-wider text-white">00:15:00</span>
+        <span id="timer-display" class="font-mono font-bold text-base sm:text-lg tracking-wider text-white">--:--:--</span>
       </div>
     </div>
 
@@ -290,7 +290,7 @@
     </section>
 
     <!-- Area Konten Soal Utama (Kanan) -->
-    <section id="question-section-panel" class="flex-1 bg-white flex flex-col justify-between overflow-y-auto">
+    <section id="question-section-panel" class="hidden flex-1 bg-white flex flex-col justify-between overflow-y-auto">
       <div>
         <!-- Banner Pertanyaan Biru Muda (#dce8f5) -->
         <div class="bg-[#dce8f5] px-5 sm:px-8 py-4 sm:py-5 border-b border-[#c5d9ed]">
@@ -327,7 +327,7 @@
           </div>
 
           <div id="question-prompt-jp" class="jp-text text-2xl sm:text-[32px] leading-relaxed text-black font-normal tracking-wide">
-            このごろはお金（　　　）大変です。
+            
           </div>
         </div>
 
@@ -1118,6 +1118,8 @@
 
     window.addEventListener("DOMContentLoaded", async () => {
       loadFromStorage();
+      syncHeaderUI();
+      renderAllCBT();
       await loadQuestionsFromRepoJSON();
       syncHeaderUI();
       renderAllCBT();
